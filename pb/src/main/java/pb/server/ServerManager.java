@@ -12,6 +12,7 @@ import pb.Utils;
 import pb.protocols.IRequestReplyProtocol;
 import pb.protocols.Protocol;
 import pb.protocols.keepalive.KeepAliveProtocol;
+import pb.protocols.session.SessionProtocol;
 
 /**
  * Manages all of the clients for the server and the server's state.
@@ -98,6 +99,13 @@ public class ServerManager extends Manager {
 			protocol.startAsServer();
 		} catch (ProtocolAlreadyRunning e) {
 			// hmmm... already requested by the client
+		}
+		SessionProtocol sessionProtocol = new SessionProtocol(endpoint,this);
+		try {
+			endpoint.handleProtocol(sessionProtocol);
+			sessionProtocol.startAsServer();
+		} catch (ProtocolAlreadyRunning e) {
+			// hmmm... already started by the client
 		}
 		synchronized(numLiveClients) {
 			numLiveClients++;
