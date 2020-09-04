@@ -15,7 +15,7 @@ import pb.server.ServerManager;
 /**
  * Server main. Parse command line options and provide default values.
  * 
- * @see {@link pb.ServerManager}
+ * @see {@link pb.server.ServerManager}
  * @see {@link pb.Utils}
  * @author aaron
  *

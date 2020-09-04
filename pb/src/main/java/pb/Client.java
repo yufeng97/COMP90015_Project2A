@@ -15,7 +15,7 @@ import pb.client.ClientManager;
 /**
  * Client main. Parse command line options and provide default values.
  * 
- * @see {@link pb.ClientManager}
+ * @see {@link pb.client.ClientManager}
  * @see {@link pb.Utils}
  * @author aaron
  *

@@ -21,7 +21,7 @@ import pb.protocols.IRequestReplyProtocol;
  * 
  * @see {@link pb.Manager}
  * @see {@link pb.Endpoint}
- * @see {@link pb.Protocol}
+ * @see {@link pb.protocols.Protocol}
  * @see {@link pb.protocols.IRequestReplyProtocol}
  * @see {@link pb.protocols.session.SessionStartRequest}
  * @see {@link pb.protocols.session.SessionStartReply}
