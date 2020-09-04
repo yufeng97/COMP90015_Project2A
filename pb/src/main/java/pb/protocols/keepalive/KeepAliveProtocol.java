@@ -7,9 +7,11 @@ import pb.Endpoint;
 import pb.EndpointUnavailable;
 import pb.Manager;
 import pb.Utils;
+import pb.client.ClientManager;
 import pb.protocols.Message;
 import pb.protocols.Protocol;
 import pb.protocols.IRequestReplyProtocol;
+import pb.server.ServerManager;
 
 /**
  * Provides all of the protocol logic for both client and server to undertake
@@ -32,9 +34,9 @@ import pb.protocols.IRequestReplyProtocol;
  * @see {@link pb.Endpoint}
  * @see {@link pb.protocols.Message}
  * @see {@link pb.protocols.keepalive.KeepAliveRequest}
- * @see {@link pb.protocols.keepalive.KeepaliveRespopnse}
+ * @see {@link pb.protocols.keepalive.KeepAliveReply}
  * @see {@link pb.protocols.Protocol}
- * @see {@link pb.protocols.IRequestReqplyProtocol}
+ * @see {@link pb.protocols.IRequestReplyProtocol}
  * @author aaron
  *
  */
@@ -45,7 +47,8 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	 * Name of this protocol. 
 	 */
 	public static final String protocolName="KeepAliveProtocol";
-	
+
+
 	/**
 	 * Initialise the protocol with an endopint and a manager.
 	 * @param endpoint
@@ -68,7 +71,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	 */
 	@Override
 	public void stopProtocol() {
-		
+		log.severe("protocol stopped while it is still underway");
 	}
 	
 	/*
@@ -79,30 +82,33 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	 * 
 	 */
 	public void startAsServer() {
-		
+		//
 	}
 	
 	/**
-	 * 
+	 *
 	 */
 	public void checkClientTimeout() {
-		
+		Utils.getInstance().setTimeout(() -> {
+			manager.endpointTimedOut(endpoint, this);
+		}, 3000);
 	}
 	
 	/**
-	 * 
+	 * Called by the manager that is acting as a client.
 	 */
 	public void startAsClient() throws EndpointUnavailable {
-		
+		sendRequest(new KeepAliveRequest());
 	}
 
 	/**
-	 * 
+	 *
 	 * @param msg
 	 */
 	@Override
 	public void sendRequest(Message msg) throws EndpointUnavailable {
-		
+		endpoint.send(msg);
+		checkClientTimeout();
 	}
 
 	/**
@@ -111,7 +117,11 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	 */
 	@Override
 	public void receiveReply(Message msg) {
-		
+		if (msg instanceof KeepAliveReply) {
+			if (manager instanceof ServerManager) {
+				checkClientTimeout();
+			}
+		}
 	}
 
 	/**
@@ -121,7 +131,14 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	 */
 	@Override
 	public void receiveRequest(Message msg) throws EndpointUnavailable {
-		
+		if (msg instanceof KeepAliveRequest) {
+			if (manager instanceof ClientManager) {
+				sendReply(new KeepAliveReply());
+			} else if (manager instanceof ServerManager) {
+				sendReply(new KeepAliveReply());
+
+			}
+		}
 	}
 
 	/**
@@ -130,7 +147,8 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	 */
 	@Override
 	public void sendReply(Message msg) throws EndpointUnavailable {
-		
+		endpoint.send(msg);
+		checkClientTimeout();
 	}
 	
 	
