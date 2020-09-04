@@ -32,9 +32,11 @@ public class ClientManager extends Manager {
 	private SessionProtocol sessionProtocol;
 	private KeepAliveProtocol keepAliveProtocol;
 	private Socket socket;
+	private int retryTimes;
 	
 	public ClientManager(String host,int port) throws UnknownHostException, IOException {
-		
+
+		retryTimes = 0;
 		socket=new Socket(InetAddress.getByName(host),port);
 		Endpoint endpoint = new Endpoint(socket,this);
 		endpoint.start();
@@ -93,6 +95,8 @@ public class ClientManager extends Manager {
 			// hmmm, so the server is requesting a session start?
 			log.warning("server initiated the session protocol... weird");
 		}
+		// reset retry times
+		retryTimes = 0;
 	}
 	
 	/**
@@ -111,7 +115,7 @@ public class ClientManager extends Manager {
 	@Override
 	public void endpointDisconnectedAbruptly(Endpoint endpoint) {
 		log.severe("connection with server terminated abruptly");
-		endpoint.close();
+		retryConnect(endpoint);
 	}
 
 	/**
@@ -132,7 +136,27 @@ public class ClientManager extends Manager {
 	@Override
 	public void endpointTimedOut(Endpoint endpoint,Protocol protocol) {
 		log.severe("server has timed out");
-		endpoint.close();
+		retryConnect(endpoint);
+	}
+
+	/**
+	 * Retry connection when disconnect, if reconnection exceed max retry times, connection close
+	 * @param endpoint
+	 */
+	private void retryConnect(Endpoint endpoint) {
+		while (retryTimes < 10) {
+			log.info("try to connect to server again");
+			// delay 5 seconds
+			Utils.getInstance().setTimeout(() -> {}, 5000);
+			if (protocolRequested(endpoint, sessionProtocol) && protocolRequested(endpoint, keepAliveProtocol)) {
+				retryTimes = 0;
+				break;
+			}
+			++retryTimes;
+		}
+		if (retryTimes >= 10) {
+			endpoint.close();
+		}
 	}
 
 	/**
