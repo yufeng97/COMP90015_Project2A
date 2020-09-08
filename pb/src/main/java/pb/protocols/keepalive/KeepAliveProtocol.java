@@ -50,7 +50,8 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	/**
 	 * check whether receive reply after 20 sec
 	 */
-	private boolean timeoutFlag = false;
+	private boolean serverTimeoutFlag = true;
+	private boolean clientTimeoutFlag = true;
 
 	/**
 	 * Initialise the protocol with an endopint and a manager.
@@ -85,16 +86,22 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	 * 
 	 */
 	public void startAsServer() {
-		//
+           checkClientTimeout();
 	}
 	
 	/**
 	 *
 	 */
 	public void checkClientTimeout() {
-		if (timeoutFlag) {
-			manager.endpointTimedOut(endpoint, this);
-		}
+		    clientTimeoutFlag = true;
+			Utils.getInstance().setTimeout(() -> {
+				if (clientTimeoutFlag) {
+					manager.endpointTimedOut(endpoint, this);
+				}else{
+					checkClientTimeout();
+				}
+			}, 2000);
+
 	}
 	
 	/**
@@ -113,11 +120,11 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	public void sendRequest(Message msg) throws EndpointUnavailable {
 		endpoint.send(msg);
 		// timeout flag for Client
-		timeoutFlag = true;
+		serverTimeoutFlag = true;
 		if (manager instanceof ClientManager) {
 			// set up a timer to check whether timeout
 			Utils.getInstance().setTimeout(() -> {
-				if (timeoutFlag) {
+				if (serverTimeoutFlag) {
 					manager.endpointTimedOut(endpoint, this);
 				} else {
 					try {
@@ -126,7 +133,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 						// ignore
 					}
 				}
-			}, 20000);
+			}, 2000);
 		}
 	}
 
@@ -137,7 +144,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	@Override
 	public void receiveReply(Message msg) {
 		if (manager instanceof ClientManager) {
-			timeoutFlag = false;
+			serverTimeoutFlag = false;
 		}
 	}
 
@@ -149,12 +156,13 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	 */
 	@Override
 	public void receiveRequest(Message msg) throws EndpointUnavailable {
+		if (manager instanceof ServerManager) {
+			clientTimeoutFlag = false;
+		}
 		if (msg instanceof KeepAliveRequest) {
 			sendReply(new KeepAliveReply());
 		}
-		if (manager instanceof ServerManager) {
-			timeoutFlag = false;
-		}
+
 
 	}
 
@@ -167,14 +175,10 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	@Override
 	public void sendReply(Message msg) throws EndpointUnavailable {
 		endpoint.send(msg);
-		if (manager instanceof ServerManager) {
-			timeoutFlag = false;
-			Utils.getInstance().setTimeout(() -> {
-				if (timeoutFlag) {
-					manager.endpointTimedOut(endpoint, this);
-				}
-			}, 20000);
-		}
+
+
+
+
 	}
 	
 	
