@@ -65,8 +65,10 @@ public class ClientManager extends Manager {
 			// just make sure the ioThread is going to terminate
 			endpoint.close();
 		}
-		
-		Utils.getInstance().cleanUp();
+
+		System.out.println("准备清空定时器");
+		//Utils.getInstance().cleanUp();
+		System.out.println("定时器清空完毕");
 	}
 	
 	/**
@@ -164,6 +166,12 @@ public class ClientManager extends Manager {
 //		} else {
 //
 //		}
+		//TODO
+		// timeout for 5 sec
+		// when connection success then retryTime to 0
+		// 重连成功，
+		// server强制终止，当他恢复时，client需能够重新连接成功
+		// client强制终止，
 		if (retryTimes < 10) {
 			++retryTimes;
 			log.info("try to connect to server again");
