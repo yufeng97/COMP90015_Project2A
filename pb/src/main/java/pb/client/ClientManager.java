@@ -33,12 +33,17 @@ public class ClientManager extends Manager {
 	private KeepAliveProtocol keepAliveProtocol;
 	private Socket socket;
 	private int retryTimes;
-	
+	private String host;
+	private int port;
+	private Endpoint endpoint;
+
 	public ClientManager(String host,int port) throws UnknownHostException, IOException {
 
 		retryTimes = 0;
+		this.host = host;
+		this.port = port;
 		socket=new Socket(InetAddress.getByName(host),port);
-		Endpoint endpoint = new Endpoint(socket,this);
+		this.endpoint = new Endpoint(socket,this);
 		endpoint.start();
 		
 		// simulate the client shutting down after 2mins
@@ -136,7 +141,7 @@ public class ClientManager extends Manager {
 	@Override
 	public void endpointTimedOut(Endpoint endpoint,Protocol protocol) {
 		log.severe("server has timed out because of protocol " + protocol.getProtocolName());
-//		retryConnect(endpoint);
+		//retryConnect(endpoint);
 	}
 
 	/**
@@ -144,20 +149,42 @@ public class ClientManager extends Manager {
 	 * @param endpoint
 	 */
 	private void retryConnect(Endpoint endpoint) {
+//		if (retryTimes < 10) {
+//			log.info("try to connect to server again");
+//			// delay 5 seconds
+//			System.out.println("计时器开始");
+//			Utils.getInstance().setTimeout(() -> {}, 5000);
+//			Utils.getInstance().setTimeout(() -> {
+//				if (protocolRequested(endpoint, sessionProtocol) && protocolRequested(endpoint, keepAliveProtocol)) {
+//					retryTimes = 0;
+//				}
+//				System.out.println("计时器停止");
+//				++retryTimes;
+//			}, 5000);
+//		} else {
+//
+//		}
 		if (retryTimes < 10) {
+			++retryTimes;
 			log.info("try to connect to server again");
-			// delay 5 seconds
-			System.out.println("计时器开始");
-			Utils.getInstance().setTimeout(() -> {}, 5000);
-			Utils.getInstance().setTimeout(() -> {
-				if (protocolRequested(endpoint, sessionProtocol) && protocolRequested(endpoint, keepAliveProtocol)) {
-					retryTimes = 0;
-				}
-				System.out.println("计时器停止");
-				++retryTimes;
-			}, 5000);
-		} else {
+			System.out.println("this is " + retryTimes + " times to connect");
 			endpoint.close();
+			try {
+				socket = new Socket(InetAddress.getByName(host), port);
+			} catch (IOException e) {
+				// ignore
+			}
+			this.endpoint = new Endpoint(socket, this);
+			this.endpoint.start();
+
+			try {
+				// just wait for this thread to terminate
+				this.endpoint.join();
+			} catch (InterruptedException e) {
+				// just make sure the ioThread is going to terminate
+			}
+		} else {
+			this.endpoint.close();
 		}
 	}
 
