@@ -1,6 +1,7 @@
 package pb.protocols.keepalive;
 
 import java.time.Instant;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.logging.Logger;
 
 import pb.*;
@@ -49,6 +50,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	 * check whether receive reply after 20 sec
 	 */
 	private boolean timeoutFlag = false;
+
 	/**
 	 * Initialise the protocol with an endopint and a manager.
 	 * @param endpoint
@@ -67,7 +69,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	}
 
 	/**
-	 * 
+	 * Generic stop session call, for either client or server.
 	 */
 	@Override
 	public void stopProtocol() {
@@ -89,10 +91,9 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	 *
 	 */
 	public void checkClientTimeout() {
-		timeoutFlag = false;
-		Utils.getInstance().setTimeout(() -> {
-			timeoutFlag = true;
-		}, 20000);
+		if (timeoutFlag) {
+			manager.endpointTimedOut(endpoint, this);
+		}
 	}
 	
 	/**
@@ -103,60 +104,75 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	}
 
 	/**
-	 *
-	 * @param msg
+	 * Just send a request, nothing special.
+	 * If manager is Client Manager, then set up a timer task to check timeout
+	 * @param msg Request Message to send
 	 */
 	@Override
 	public void sendRequest(Message msg) throws EndpointUnavailable {
 		endpoint.send(msg);
+		// timeout flag for Client
+		timeoutFlag = true;
 		if (manager instanceof ClientManager) {
-			checkClientTimeout();
+			// set up a timer to check whether timeout
+			Utils.getInstance().setTimeout(() -> {
+				if (timeoutFlag) {
+					manager.endpointTimedOut(endpoint, this);
+				} else {
+					try {
+						sendRequest(new KeepAliveRequest());
+					} catch (EndpointUnavailable e) {
+						// ignore
+					}
+				}
+			}, 20000);
 		}
 	}
 
 	/**
-	 * 
-	 * @param msg
+	 * If the manager is Client Manager then set timeout flag as false.
+	 * @param msg Reply Message received
 	 */
 	@Override
 	public void receiveReply(Message msg) {
 		if (manager instanceof ClientManager) {
-			if (timeoutFlag) {
-				manager.endpointTimedOut(endpoint, this);
-			} else {
-				Utils.getInstance().cleanUp();
-			}
+			timeoutFlag = false;
 		}
 	}
 
 	/**
-	 *
-	 * @param msg
-	 * @throws EndpointUnavailable 
+	 * Received a request then send Reply message back.
+	 * If manager is Server Manager, then set timeout flag as false.
+	 * @param msg Request Message received
+	 * @throws EndpointUnavailable EndpointUnavailable
 	 */
 	@Override
 	public void receiveRequest(Message msg) throws EndpointUnavailable {
-		if (manager instanceof ServerManager) {
-			if (timeoutFlag) {
-				manager.endpointTimedOut(endpoint, this);
-			} else {
-				Utils.getInstance().cleanUp();
-			}
-		}
 		if (msg instanceof KeepAliveRequest) {
 			sendReply(new KeepAliveReply());
 		}
+		if (manager instanceof ServerManager) {
+			timeoutFlag = false;
+		}
+
 	}
 
 	/**
-	 * 
-	 * @param msg
+	 * Send a Reply Message.
+	 * If manager is Server Manager, then set timeout flag as false.
+	 * And set up a timer task to check if received a request in timeout.
+	 * @param msg Reply Message to send.
 	 */
 	@Override
 	public void sendReply(Message msg) throws EndpointUnavailable {
 		endpoint.send(msg);
 		if (manager instanceof ServerManager) {
-			checkClientTimeout();
+			timeoutFlag = false;
+			Utils.getInstance().setTimeout(() -> {
+				if (timeoutFlag) {
+					manager.endpointTimedOut(endpoint, this);
+				}
+			}, 20000);
 		}
 	}
 	
