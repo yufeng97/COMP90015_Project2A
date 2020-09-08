@@ -1,10 +1,11 @@
 package pb.protocols.keepalive;
 
-import java.time.Instant;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.logging.Logger;
 
-import pb.*;
+import java.util.logging.Logger;
+import pb.Utils;
+import pb.Endpoint;
+import pb.EndpointUnavailable;
+import pb.Manager;
 import pb.client.ClientManager;
 import pb.protocols.Message;
 import pb.protocols.Protocol;
@@ -46,7 +47,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	 */
 	public static final String protocolName="KeepAliveProtocol";
 
-	/*
+	/**
 	 * check whether receive reply after 20 sec
 	 */
 	private boolean timeoutFlag = false;
