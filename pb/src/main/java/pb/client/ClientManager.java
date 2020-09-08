@@ -77,7 +77,7 @@ public class ClientManager extends Manager {
 			endpoint.handleProtocol(sessionProtocol);
 			sessionProtocol.startAsClient();
 		} catch (EndpointUnavailable e) {
-			log.severe("connection with server terminated abruptly");
+			log.severe("connection with server terminated abruptly because " + e.getMessage());
 			endpoint.close();
 		} catch (ProtocolAlreadyRunning e) {
 			// hmmm, so the server is requesting a session start?
@@ -89,7 +89,7 @@ public class ClientManager extends Manager {
 			endpoint.handleProtocol(keepAliveProtocol);
 			keepAliveProtocol.startAsClient();
 		} catch (EndpointUnavailable e) {
-			log.severe("connection with server terminated abruptly");
+			log.severe("connection with server terminated abruptly" + e.getMessage());
 			endpoint.close();
 		} catch (ProtocolAlreadyRunning e) {
 			// hmmm, so the server is requesting a session start?
@@ -135,8 +135,8 @@ public class ClientManager extends Manager {
 	 */
 	@Override
 	public void endpointTimedOut(Endpoint endpoint,Protocol protocol) {
-		log.severe("server has timed out");
-		retryConnect(endpoint);
+		log.severe("server has timed out because of protocol " + protocol.getProtocolName());
+//		retryConnect(endpoint);
 	}
 
 	/**
@@ -144,17 +144,19 @@ public class ClientManager extends Manager {
 	 * @param endpoint
 	 */
 	private void retryConnect(Endpoint endpoint) {
-		while (retryTimes < 10) {
+		if (retryTimes < 10) {
 			log.info("try to connect to server again");
 			// delay 5 seconds
+			System.out.println("计时器开始");
 			Utils.getInstance().setTimeout(() -> {}, 5000);
-			if (protocolRequested(endpoint, sessionProtocol) && protocolRequested(endpoint, keepAliveProtocol)) {
-				retryTimes = 0;
-				break;
-			}
-			++retryTimes;
-		}
-		if (retryTimes >= 10) {
+			Utils.getInstance().setTimeout(() -> {
+				if (protocolRequested(endpoint, sessionProtocol) && protocolRequested(endpoint, keepAliveProtocol)) {
+					retryTimes = 0;
+				}
+				System.out.println("计时器停止");
+				++retryTimes;
+			}, 5000);
+		} else {
 			endpoint.close();
 		}
 	}
