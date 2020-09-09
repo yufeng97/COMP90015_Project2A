@@ -5,9 +5,11 @@ import java.util.logging.Logger;
 import pb.Endpoint;
 import pb.EndpointUnavailable;
 import pb.Manager;
+import pb.Utils;
 import pb.protocols.Message;
 import pb.protocols.Protocol;
 import pb.protocols.IRequestReplyProtocol;
+import pb.protocols.keepalive.KeepAliveRequest;
 
 /**
  * Allows the client to request the session to start and to request the session
@@ -18,7 +20,7 @@ import pb.protocols.IRequestReplyProtocol;
  * session stop request to the client if it wants (needs) to stop the session,
  * e.g. perhaps the server is becoming overloaded and needs to shed some
  * clients.
- * 
+ *
  * @see {@link pb.Manager}
  * @see {@link pb.Endpoint}
  * @see {@link pb.protocols.Protocol}
@@ -31,158 +33,197 @@ import pb.protocols.IRequestReplyProtocol;
  *
  */
 public class SessionProtocol extends Protocol implements IRequestReplyProtocol {
-	private static Logger log = Logger.getLogger(SessionProtocol.class.getName());
-	
-	/**
-	 * The unique name of the protocol.
-	 */
-	public static final String protocolName="SessionProtocol";
-	
-	// Use of volatile is in case the thread that calls stopProtocol is different
-	// to the endpoint thread, although in this case it hardly needed.
-	
-	/**
-	 * Whether the protocol has started, i.e. start request and reply have been sent,
-	 * or not.
-	 */
-	private volatile boolean protocolRunning=false;
-	
-	/**
-	 * Initialise the protocol with an endpoint and manager.
-	 * @param endpoint
-	 * @param manager
-	 */
-	public SessionProtocol(Endpoint endpoint, Manager manager) {
-		super(endpoint,manager);
-	}
-	
-	/**
-	 * @return the name of the protocol.
-	 */
-	@Override
-	public String getProtocolName() {
-		return protocolName;
-	}
+    private static Logger log = Logger.getLogger(SessionProtocol.class.getName());
 
-	/**
-	 * If this protocol is stopped while it is still in the running
-	 * state then this indicates something may be a problem.
-	 */
-	@Override
-	public void stopProtocol() {
-		if(protocolRunning) {
-			log.severe("protocol stopped while it is still underway");
-		}
-	}
-	
-	/*
-	 * Interface methods
-	 */
+    /**
+     * The unique name of the protocol.
+     */
+    public static final String protocolName="SessionProtocol";
 
-	
-	/**
-	 * Called by the manager that is acting as a client.
-	 */
-	@Override
-	public void startAsClient() throws EndpointUnavailable {
-		//  send the server a start session request
-		sendRequest(new SessionStartRequest());
-	}
+    // Use of volatile is in case the thread that calls stopProtocol is different
+    // to the endpoint thread, although in this case it hardly needed.
 
-	/**
-	 * Called by the manager that is acting as a server.
-	 */
-	@Override
-	public void startAsServer() {
-		// nothing to do really
-	}
-	
-	/**
-	 * Generic stop session call, for either client or server.
-	 * @throws EndpointUnavailable if the endpoint is not ready or has terminated
-	 */
-	public void stopSession() throws EndpointUnavailable {
-		sendRequest(new SessionStopRequest());
-	}
-	
-	/**
-	 * Just send a request, nothing special.
-	 * @param msg
-	 */
-	@Override
-	public void sendRequest(Message msg) throws EndpointUnavailable {
-		endpoint.send(msg);
-	}
+    /**
+     * Whether the protocol has started, i.e. start request and reply have been sent,
+     * or not.
+     */
+    private volatile boolean protocolRunning=false;
 
-	/**
-	 * If the reply is a session start reply then tell the manager that
-	 * the session has started, otherwise if its a session stop reply then
-	 * tell the manager that the session has stopped. If something weird 
-	 * happens then tell the manager that something weird has happened.
-	 * @param msg
-	 */
-	@Override
-	public void receiveReply(Message msg) {
-		if(msg instanceof SessionStartReply) {
-			if(protocolRunning){
-				// error, received a second reply?
-				manager.protocolViolation(endpoint,this);
-				return;
-			}
-			protocolRunning=true;
-			manager.sessionStarted(endpoint);
-		} else if(msg instanceof SessionStopReply) {
-			if(!protocolRunning) {
-				// error, received a second reply?
-				manager.protocolViolation(endpoint,this);
-				return;
-			}
-			protocolRunning=false;
-			manager.sessionStopped(endpoint);
-		}
-	}
 
-	/**
-	 * If the received request is a session start request then reply and
-	 * tell the manager that the session has started. If the received request
-	 * is a session stop request then reply and tell the manager that
-	 * the session has stopped. If something weird has happened then...
-	 * @param msg
-	 */
-	@Override
-	public void receiveRequest(Message msg) throws EndpointUnavailable {
-		if(msg instanceof SessionStartRequest) {
-			if(protocolRunning) {
-				// error, received a second request?
-				manager.protocolViolation(endpoint,this);
-				return;
-			}
-			protocolRunning=true;
-			sendReply(new SessionStartReply());
-			manager.sessionStarted(endpoint);
-		} else if(msg instanceof SessionStopRequest) {
-			if(!protocolRunning) {
-				// error, received a second request?
-				manager.protocolViolation(endpoint,this);
-				return;
-			}
-			protocolRunning=false;
-			sendReply(new SessionStopReply());
-			manager.sessionStopped(endpoint);
-		}
-		
-	}
+    /**
+     * check whether receive reply after 20 sec
+     */
+    private boolean serverTimeoutFlag = true;
+    private boolean clientTimeoutFlag = true;
 
-	/**
-	 * Just send a reply, nothing special to do.
-	 * @param msg
-	 */
-	@Override
-	public void sendReply(Message msg) throws EndpointUnavailable {
-		endpoint.send(msg);
-	}
+    /**
+     * Initialise the protocol with an endpoint and manager.
+     * @param endpoint
+     * @param manager
+     */
+    public SessionProtocol(Endpoint endpoint, Manager manager) {
+        super(endpoint,manager);
+    }
 
-	
+    /**
+     * @return the name of the protocol.
+     */
+    @Override
+    public String getProtocolName() {
+        return protocolName;
+    }
 
-	
+    /**
+     * If this protocol is stopped while it is still in the running
+     * state then this indicates something may be a problem.
+     */
+    @Override
+    public void stopProtocol() {
+        if(protocolRunning) {
+            log.severe("protocol stopped while it is still underway");
+        }
+    }
+
+    /*
+     * Interface methods
+     */
+
+
+    /**
+     * Called by the manager that is acting as a client.
+     */
+    @Override
+    public void startAsClient() throws EndpointUnavailable {
+        //  send the server a start session request
+        sendRequest(new SessionStartRequest());
+    }
+
+    /**
+     * Called by the manager that is acting as a server.
+     */
+    @Override
+    public void startAsServer() {
+        // nothing to do really
+        checkClientTimeout();
+    }
+
+
+
+    /*
+     *
+     */
+    public void checkClientTimeout() {
+        clientTimeoutFlag = true;
+        Utils.getInstance().setTimeout(() -> {
+            if (clientTimeoutFlag) {
+                manager.endpointTimedOut(endpoint, this);
+            }
+        }, 2000);
+    }
+
+
+
+
+
+    /**
+     * Generic stop session call, for either client or server.
+     * @throws EndpointUnavailable if the endpoint is not ready or has terminated
+     */
+    public void stopSession() throws EndpointUnavailable {
+        sendRequest(new SessionStopRequest());
+    }
+
+    /**
+     * Just send a request, nothing special.
+     * @param msg
+     */
+    @Override
+    public void sendRequest(Message msg) throws EndpointUnavailable {
+        endpoint.send(msg);
+        serverTimeoutFlag = true; //假设sever会超时
+        Utils.getInstance().setTimeout(() -> {
+            if (serverTimeoutFlag) {
+                manager.endpointTimedOut(endpoint, this);
+            }
+        }, 2000);
+    }
+
+    /**
+     * If the reply is a session start reply then tell the manager that
+     * the session has started, otherwise if its a session stop reply then
+     * tell the manager that the session has stopped. If something weird
+     * happens then tell the manager that something weird has happened.
+     * @param msg
+     */
+    @Override
+    public void receiveReply(Message msg) {
+        if(msg instanceof SessionStartReply) {
+            if(protocolRunning){ //这个protocol是不是run 只有一个在run
+                // error, received a second reply?
+                manager.protocolViolation(endpoint,this);
+                return;
+            }else{//no session running
+                serverTimeoutFlag = false;
+            }
+
+            protocolRunning=true;
+            manager.sessionStarted(endpoint);
+        } else if(msg instanceof SessionStopReply) {
+            if(!protocolRunning) {
+                // error, received a second reply?
+                manager.protocolViolation(endpoint,this);
+                return;
+            }else{
+                serverTimeoutFlag = false;
+            }
+            protocolRunning=false;
+            manager.endpointTimedOut(endpoint, this);
+        }
+    }
+
+    /**
+     * If the received request is a session start request then reply and
+     * tell the manager that the session has started. If the received request
+     * is a session stop request then reply and tell the manager that
+     * the session has stopped. If something weird has happened then...
+     * @param msg
+     */
+    @Override
+    public void receiveRequest(Message msg) throws EndpointUnavailable {
+        if(msg instanceof SessionStartRequest) {
+            if(protocolRunning) {
+                // error, received a second request?
+                manager.protocolViolation(endpoint,this);
+                return;
+            }else{
+                clientTimeoutFlag = false;
+            }
+            protocolRunning=true;
+            sendReply(new SessionStartReply());
+            manager.sessionStarted(endpoint);
+        } else if(msg instanceof SessionStopRequest) {
+            if(!protocolRunning) {
+                // error, received a second request?
+                manager.protocolViolation(endpoint,this);
+                return;
+            }else{
+                clientTimeoutFlag = false;
+            }
+            protocolRunning=false;
+            sendReply(new SessionStopReply());
+            manager.sessionStopped(endpoint);
+        }
+
+    }
+
+    /**
+     * Just send a reply, nothing special to do.
+     * @param msg
+     */
+    @Override
+    public void sendReply(Message msg) throws EndpointUnavailable {
+        endpoint.send(msg);
+    }
+
+
 }

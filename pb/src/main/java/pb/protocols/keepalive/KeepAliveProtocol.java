@@ -120,7 +120,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	public void sendRequest(Message msg) throws EndpointUnavailable {
 		endpoint.send(msg);
 		// timeout flag for Client
-		serverTimeoutFlag = true;
+		serverTimeoutFlag = true; //假设sever会超时
 		if (manager instanceof ClientManager) {
 			// set up a timer to check whether timeout
 			Utils.getInstance().setTimeout(() -> {
@@ -144,7 +144,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	@Override
 	public void receiveReply(Message msg) {
 		if (manager instanceof ClientManager) {
-			serverTimeoutFlag = false;
+			serverTimeoutFlag = false; //收到reply才没超时
 		}
 	}
 
