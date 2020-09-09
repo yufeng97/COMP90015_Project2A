@@ -33,6 +33,7 @@ public class ClientManager extends Manager {
 	private KeepAliveProtocol keepAliveProtocol;
 	private Socket socket;
 	private int retryTimes;
+	private int retryTimeout;
 	private String host;
 	private int port;
 	private Endpoint endpoint;
@@ -40,6 +41,7 @@ public class ClientManager extends Manager {
 	public ClientManager(String host,int port) throws UnknownHostException, IOException {
 
 		retryTimes = 0;
+		retryTimeout = 0;
 		this.host = host;
 		this.port = port;
 		socket=new Socket(InetAddress.getByName(host),port);
@@ -104,6 +106,7 @@ public class ClientManager extends Manager {
 		}
 		// reset retry times
 		retryTimes = 0;
+//		retryTimeout = 0;
 	}
 	
 	/**
@@ -147,6 +150,7 @@ public class ClientManager extends Manager {
 	 */
 	@Override
 	public void endpointTimedOut(Endpoint endpoint,Protocol protocol) {
+
 		//String protocolName = protocol.getProtocolName();
 		log.severe("server has timed out because of protocol");
 		endpoint.close();
@@ -155,6 +159,12 @@ public class ClientManager extends Manager {
 //		} catch (InterruptedException e) {
 //			e.printStackTrace();
 //		}
+
+//		log.severe("server has timed out because of protocol " + protocol.getProtocolName());
+//		retryTimeout(endpoint, protocol);
+
+
+
 //		if (retryTimes < 10) {
 //			++retryTimes;
 //			System.out.println("This is retry timeout connection " + retryTimes + " times");
@@ -192,7 +202,74 @@ public class ClientManager extends Manager {
 //			endpoint.close();
 //		}
 
+
 	}
+
+//	private void retryTimeout(Endpoint endpoint, Protocol protocol) {
+//		try{
+//			Thread.sleep(5000); /***休眠5000毫秒***/
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+//		if (retryTimeout < 10) {
+//			++retryTimeout;
+//			String protocolName = protocol.getProtocolName();
+//			System.out.println("This is retry timeout connection " + retryTimeout + " times");
+//
+//			if (protocolName.equals("KeepAliveProtocol")) {
+//				KeepAliveProtocol keepAliveProtocol = (KeepAliveProtocol) protocol;
+//				try {
+//					keepAliveProtocol.startAsClient();
+//					retryTimeout = 0;
+//				} catch (EndpointUnavailable e) {
+//					//
+//				}
+//			} else if (protocolName.equals("SessionProtocol")) {
+//				SessionProtocol sessionProtocol = (SessionProtocol) protocol;
+//				try {
+//					sessionProtocol.startAsClient();
+//					retryTimeout = 0;
+//				} catch (EndpointUnavailable e) {
+//					//
+//				}
+//			}
+//
+//
+//			// remove old protocol from endpoint protocols map
+////			endpoint.stopProtocol(protocolName);
+////			// set up a new protocol according to the parameter protocol's name
+////			if (protocolName.equals("KeepAliveProtocol")) {
+////				KeepAliveProtocol newProtocol = new KeepAliveProtocol(endpoint, this);
+////				if (protocolRequested(endpoint, newProtocol)) {
+////					try {
+////						newProtocol.startAsClient();
+////					} catch (EndpointUnavailable e) {
+////						//
+////						retryTimeout(endpoint, newProtocol);
+////					}
+////				} else {
+////					// try again
+////					retryTimeout(endpoint, newProtocol);
+////				}
+////			} else if (protocolName.equals("SessionProtocol")) {
+////				SessionProtocol newProtocol = new SessionProtocol(endpoint, this);
+////				if (protocolRequested(endpoint, newProtocol)) {
+////					try {
+////						newProtocol.startAsClient();
+////					} catch (EndpointUnavailable e) {
+////						//
+////						retryTimeout(endpoint, newProtocol);
+////					}
+////				} else {
+////					// try again
+////					retryTimeout(endpoint, newProtocol);
+////				}
+////			}
+//		} else {
+//			endpoint.close();
+//		}
+//
+//	}
 
 	/**
 	 * Retry connection when disconnect, if reconnection exceed max retry times, connection close
