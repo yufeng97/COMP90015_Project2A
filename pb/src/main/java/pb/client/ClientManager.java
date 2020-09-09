@@ -142,8 +142,45 @@ public class ClientManager extends Manager {
 	 */
 	@Override
 	public void endpointTimedOut(Endpoint endpoint,Protocol protocol) {
-		log.severe("server has timed out because of protocol " + protocol.getProtocolName());
-		//retryConnect(endpoint);
+		String protocolName = protocol.getProtocolName();
+		log.severe("server has timed out because of protocol " + protocolName);
+		if (retryTimes < 10) {
+			++retryTimes;
+			System.out.println("This is retry timeout connection " + retryTimes + " times");
+			// remove old protocol from endpoint protocols map
+			endpoint.stopProtocol(protocolName);
+			// set up a new protocol according to the parameter protocol's name
+			if (protocolName.equals("KeepAliveProtocol")) {
+				KeepAliveProtocol newProtocol = new KeepAliveProtocol(endpoint, this);
+				if (protocolRequested(endpoint, newProtocol)) {
+					try {
+						newProtocol.startAsClient();
+					} catch (EndpointUnavailable e) {
+						//
+						endpointTimedOut(endpoint, newProtocol);
+					}
+				} else {
+					// try again
+					endpointTimedOut(endpoint, newProtocol);
+				}
+			} else if (protocolName.equals("SessionProtocol")) {
+				SessionProtocol newProtocol = new SessionProtocol(endpoint, this);
+				if (protocolRequested(endpoint, newProtocol)) {
+					try {
+						newProtocol.startAsClient();
+					} catch (EndpointUnavailable e) {
+						//
+						endpointTimedOut(endpoint, newProtocol);
+					}
+				} else {
+					// try again
+					endpointTimedOut(endpoint, newProtocol);
+				}
+			}
+		} else {
+			endpoint.close();
+		}
+
 	}
 
 	/**
@@ -151,27 +188,11 @@ public class ClientManager extends Manager {
 	 * @param endpoint
 	 */
 	private void retryConnect(Endpoint endpoint) {
-//		if (retryTimes < 10) {
-//			log.info("try to connect to server again");
-//			// delay 5 seconds
-//			System.out.println("计时器开始");
-//			Utils.getInstance().setTimeout(() -> {}, 5000);
-//			Utils.getInstance().setTimeout(() -> {
-//				if (protocolRequested(endpoint, sessionProtocol) && protocolRequested(endpoint, keepAliveProtocol)) {
-//					retryTimes = 0;
-//				}
-//				System.out.println("计时器停止");
-//				++retryTimes;
-//			}, 5000);
-//		} else {
-//
-//		}
 		//TODO
-		// timeout for 5 sec
-		// when connection success then retryTime to 0
-		// 重连成功，
-		// server强制终止，当他恢复时，client需能够重新连接成功
-		// client强制终止，
+		// wait for 5 sec
+		// when connection success then retryTime to 0		solved
+		// server强制终止，当他恢复时，client需能够重新连接成功  	solved
+		// client强制终止，server需要进行重连操作什么的吗？
 		if (retryTimes < 10) {
 			++retryTimes;
 			log.info("try to connect to server again");

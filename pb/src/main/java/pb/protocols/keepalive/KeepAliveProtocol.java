@@ -175,10 +175,6 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 	@Override
 	public void sendReply(Message msg) throws EndpointUnavailable {
 		endpoint.send(msg);
-
-
-
-
 	}
 	
 	
