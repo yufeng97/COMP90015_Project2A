@@ -118,7 +118,7 @@ public class SessionProtocol extends Protocol implements IRequestReplyProtocol {
             if (clientTimeoutFlag) {
                 manager.endpointTimedOut(endpoint, this);
             }
-        }, 2000);
+        }, 10000);
     }
 
 
@@ -145,7 +145,7 @@ public class SessionProtocol extends Protocol implements IRequestReplyProtocol {
             if (serverTimeoutFlag) {
                 manager.endpointTimedOut(endpoint, this);
             }
-        }, 2000);
+        }, 10000);
     }
 
     /**

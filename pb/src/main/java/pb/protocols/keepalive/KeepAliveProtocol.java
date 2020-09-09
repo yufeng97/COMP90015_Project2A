@@ -100,7 +100,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 				}else{
 					checkClientTimeout();
 				}
-			}, 2000);
+			}, 10000);
 
 	}
 	
@@ -133,7 +133,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 						// ignore
 					}
 				}
-			}, 2000);
+			}, 10000);
 		}
 	}
 

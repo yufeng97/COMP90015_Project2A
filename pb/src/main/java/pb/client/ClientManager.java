@@ -122,6 +122,11 @@ public class ClientManager extends Manager {
 	@Override
 	public void endpointDisconnectedAbruptly(Endpoint endpoint) {
 		log.severe("connection with server terminated abruptly");
+		try{
+			Thread.sleep(5000); /***休眠5000毫秒***/
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		retryConnect(endpoint);
 	}
 
@@ -144,6 +149,11 @@ public class ClientManager extends Manager {
 	public void endpointTimedOut(Endpoint endpoint,Protocol protocol) {
 		String protocolName = protocol.getProtocolName();
 		log.severe("server has timed out because of protocol " + protocolName);
+		try{
+			Thread.sleep(5000); /***休眠5000毫秒***/
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		if (retryTimes < 10) {
 			++retryTimes;
 			System.out.println("This is retry timeout connection " + retryTimes + " times");
