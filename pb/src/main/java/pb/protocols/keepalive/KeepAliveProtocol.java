@@ -160,7 +160,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 			clientTimeoutFlag = false;
 		}
 		if (msg instanceof KeepAliveRequest) {
-			sendReply(new KeepAliveReply());
+//			sendReply(new KeepAliveReply());
 		}
 
 

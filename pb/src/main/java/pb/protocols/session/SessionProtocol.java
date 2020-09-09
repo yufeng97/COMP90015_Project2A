@@ -177,7 +177,7 @@ public class SessionProtocol extends Protocol implements IRequestReplyProtocol {
                 serverTimeoutFlag = false;
             }
             protocolRunning=false;
-            manager.endpointTimedOut(endpoint, this);
+            manager.sessionStopped(endpoint);
         }
     }
 
