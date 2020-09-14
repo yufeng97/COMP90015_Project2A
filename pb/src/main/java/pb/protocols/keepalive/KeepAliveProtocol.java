@@ -100,7 +100,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 				}else{
 					checkClientTimeout();
 				}
-			}, 10000);
+			}, 20000);
 
 	}
 	
@@ -133,7 +133,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 						// ignore
 					}
 				}
-			}, 10000);
+			}, 20000);
 		}
 	}
 
@@ -160,7 +160,7 @@ public class KeepAliveProtocol extends Protocol implements IRequestReplyProtocol
 			clientTimeoutFlag = false;
 		}
 		if (msg instanceof KeepAliveRequest) {
-//			sendReply(new KeepAliveReply());
+			sendReply(new KeepAliveReply());
 		}
 
 
