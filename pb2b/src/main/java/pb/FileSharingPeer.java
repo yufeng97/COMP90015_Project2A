@@ -268,6 +268,8 @@ public class FileSharingPeer {
 		});
 
 		peerManager.start();
+		String peerport = host + ":" + indexServerPort;
+		uploadFileList(filenames, peerManager, peerport);
 
 		// just keep sharing until the user presses "return"
 		BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
@@ -288,7 +290,7 @@ public class FileSharingPeer {
 		// response has the format: PeerIP:PeerPort:filename
 		String[] parts = response.split(":", 3);
 		ClientManager clientManager = null;
-
+		System.out.println("response: " + response + " split成功了");
 		/*
 		 * TODO for project 2B. Check that the individual parts returned from the server
 		 * have the correct format and that we make a connection to the peer. Print out
@@ -299,6 +301,7 @@ public class FileSharingPeer {
 			int port = Integer.parseInt(parts[1]);
 			clientManager = peerManager.connect(port, parts[0]);
 //			clientManager = new ClientManager(parts[0], port); // not sure
+			System.out.println("建立连接了");
 		} catch (UnknownHostException e) {
 			System.out.println("wrong PeerIp and PeerPort" + e.getMessage());
 			log.severe("Could not make a connection to the peer: " + parts[0] + ":" + parts[1]);
@@ -307,7 +310,7 @@ public class FileSharingPeer {
 
 		try {
 			OutputStream out = new FileOutputStream(parts[2]);
-
+			System.out.println("建立output stream了");
 			/*
 			 * TODO for project 2B. listen for peerStarted, peerStopped and peerError events
 			 * on the clientManager. Listen for fileContents and fileError events on the
@@ -323,6 +326,7 @@ public class FileSharingPeer {
 					try {
 						// write the file
 						String encoded = (String)eventArgs1[0];
+						System.out.println("received: " + encoded);
 						if (!encoded.isEmpty()) {
 							// continue receiving file
 							out.write(Base64.decodeBase64(encoded));
@@ -389,12 +393,8 @@ public class FileSharingPeer {
 			ClientManager clientManager1 = (ClientManager) eventArgs[1];
 			client.on(IndexServer.queryResponse, (eventArgs1) -> {
 				String response = (String)eventArgs1[0];
-				log.info("receive query response" + response);
+				log.info("receive query response: " + response);
 				if (!response.isEmpty()) {
-					/*
-					 * not sure whether to emit query index
-					 */
-					client.emit(IndexServer.queryIndex, query);
 					try {
 						getFileFromPeer(peerManager, response);
 					} catch (InterruptedException e) {
@@ -409,6 +409,10 @@ public class FileSharingPeer {
 				log.severe("query error");
 				clientManager.shutdown();
 			});
+			/*
+			 * not sure whether to emit query index
+			 */
+			client.emit(IndexServer.queryIndex, query);
 		}).on(PeerManager.peerStopped, (eventArgs) -> {
 			Endpoint client = (Endpoint) eventArgs[0];
 			ClientManager clientManager1 = (ClientManager) eventArgs[1];
@@ -421,6 +425,7 @@ public class FileSharingPeer {
 
 
 		clientManager.start();
+
 		clientManager.join(); // wait for the query to finish, since we are in main
 		/*
 		 * We also have to join with any other client managers that were started for
