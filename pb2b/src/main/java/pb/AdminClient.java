@@ -11,6 +11,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import pb.managers.ClientManager;
+import pb.managers.ServerManager;
 import pb.utils.Utils;
 
 /**
@@ -62,6 +63,10 @@ public class AdminClient  {
 		 * the user would enter -shutdown for just regular shutdown, -shutdown -force
 		 * for force shutdown and -shutdown -vader for vader shutdown.
 		 */
+		options.addOption("password", true, "password, a string");
+		options.addOption("shutdown", false, "shutdown option");
+		options.addOption("force", false, "force shutdown");
+		options.addOption("vader", false, "vader shutdown");
         
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -100,6 +105,23 @@ public class AdminClient  {
 		 * Don't forget that you need to modify ServerMain.java to listen for these
 		 * events coming from any client that connects to it.
 		 */
+		if (cmd.hasOption("shutdown")) {
+			if (cmd.hasOption("force") && cmd.hasOption("vader")) {
+				// should not shutdown option
+				System.out.println("argument -force and -vader should not use at the same time");
+			} else if (cmd.hasOption("force") && !cmd.hasOption("vader")) {
+				// force
+				clientManager.emit(ServerManager.forceShutdownServer, "");
+			} else if (!cmd.hasOption("force") && cmd.hasOption("vader")) {
+				// vader
+				clientManager.emit(ServerManager.vaderShutdownServer, "");
+			} else {
+				// regular shutdown
+				clientManager.emit(ServerManager.shutdownServer, "");
+				System.out.println("发送shutdown event");
+
+			}
+		}
         
         clientManager.join();
         Utils.getInstance().cleanUp();

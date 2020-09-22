@@ -212,6 +212,9 @@ public class IndexServer {
     	// parse command line options
         Options options = new Options();
         options.addOption("port",true,"server port, an integer");
+
+        // new code here
+        options.addOption("password", true, "password, a string");
         
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -236,7 +239,9 @@ public class IndexServer {
 		 * ServerManager(port,password) initializer (that needs to be created by you in
 		 * ServerMain.java) if the password was given.
 		 */
-        
+        if (cmd.hasOption("password")) {
+        	String password = cmd.getOptionValue("password");
+		}
         
         // create a server manager and setup event handlers
         ServerManager serverManager = new ServerManager(port);
@@ -277,7 +282,12 @@ public class IndexServer {
         	// we don't need this info, but let's log it
         	log.info("using Internet address: "+peerport);
         });
-        
+
+        // code here is myself
+        serverManager.on(ServerManager.shutdownServer, (eventArgs) -> {
+
+		});
+
         // start up the server
         log.info("PB Index Server starting up");
         serverManager.start();

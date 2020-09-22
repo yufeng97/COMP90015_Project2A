@@ -29,6 +29,7 @@ import pb.managers.IOThread;
 import pb.managers.PeerManager;
 import pb.managers.ServerManager;
 import pb.managers.endpoint.Endpoint;
+import pb.utils.Eventable;
 import pb.utils.Utils;
 
 /**
@@ -192,6 +193,23 @@ public class FileSharingPeer {
 		 * emitIndexUpdate(...) to send the index updates. Print out something
 		 * informative for the events when they they occur.
 		 */
+		clientManager.on(PeerManager.peerStarted, (eventArgs) -> {
+			Endpoint client = (Endpoint) eventArgs[0];
+			ClientManager clientManager1 = (ClientManager) eventArgs[1];
+			client.on(IndexServer.indexUpdateError, (eventArgs1) -> {
+				String update = (String)eventArgs1[0];
+				System.out.println("index Update error");
+				log.warning("Received index update: " + update);
+			});
+			emitIndexUpdate(peerport, filenames, client, clientManager1);
+		}).on(PeerManager.peerError, (eventArgs) -> {
+			Endpoint client = (Endpoint)eventArgs[0];
+//			ServerManager serverManager = (ServerManager)eventArgs[1];
+			log.warning("Client peer ended in error: " + client.getOtherEndpointId());
+		}).on(PeerManager.peerStopped, (eventArgs) -> {
+			Endpoint endpoint = (Endpoint)eventArgs[0];
+			log.info("Peer ended: " + endpoint.getOtherEndpointId());
+		});
 
 		clientManager.start();
 	}
@@ -219,6 +237,35 @@ public class FileSharingPeer {
 		 * peerServerManager is ready and when the ioThread event has been received.
 		 * Print out something informative for the events when they occur.
 		 */
+		peerManager.on(PeerManager.peerStarted, (eventArgs) -> {
+			Endpoint client = (Endpoint)eventArgs[0];
+			ServerManager serverManager = (ServerManager)eventArgs[1];
+			client.on(getFile, (eventArgs1) -> {
+				String filename = (String)eventArgs1[0];
+				startTransmittingFile(filename, client);
+			});
+		}).on(PeerManager.peerStopped, (eventArgs) -> {
+			Endpoint client = (Endpoint)eventArgs[0];
+			ServerManager serverManager = (ServerManager)eventArgs[1];
+			log.info("Client peer ended: " + client.getOtherEndpointId());
+		}).on(PeerManager.peerError, (eventArgs) -> {
+			Endpoint client = (Endpoint)eventArgs[0];
+			ServerManager serverManager = (ServerManager)eventArgs[1];
+			log.warning("Client peer ended in error: " + client.getOtherEndpointId());
+		}).on(PeerManager.peerServerManager, (eventArgs) -> {
+			ServerManager serverManager = (ServerManager)eventArgs[0];
+			log.info("ServerManager has been initialized but not started.");
+		}).on(IOThread.ioThread, (eventArgs) -> {
+			String peerport = (String) eventArgs[0];
+			// we don't need this info, but let's log it
+			log.info("Sharing peer starts using Internet address: " + peerport);
+			try {
+				uploadFileList(filenames, peerManager, peerport);
+			} catch (UnknownHostException | InterruptedException e) {
+				System.out.println("wrong PeerIp and PeerPort" + e.getMessage());
+				peerManager.shutdown();
+			}
+		});
 
 		peerManager.start();
 
@@ -233,7 +280,7 @@ public class FileSharingPeer {
 	/**
 	 * Process a query response from the index server and download the file
 	 * 
-	 * @param queryResponse
+	 * @param response queryResponse
 	 * @throws InterruptedException
 	 */
 	private static void getFileFromPeer(PeerManager peerManager, String response) throws InterruptedException {
@@ -248,6 +295,15 @@ public class FileSharingPeer {
 		 * any errors and just return in this case. Otherwise you have a clientManager
 		 * that has connected.
 		 */
+		try {
+			int port = Integer.parseInt(parts[1]);
+			clientManager = peerManager.connect(port, parts[0]);
+//			clientManager = new ClientManager(parts[0], port); // not sure
+		} catch (UnknownHostException e) {
+			System.out.println("wrong PeerIp and PeerPort" + e.getMessage());
+			log.severe("Could not make a connection to the peer: " + parts[0] + ":" + parts[1]);
+			return;
+		}
 
 		try {
 			OutputStream out = new FileOutputStream(parts[2]);
@@ -260,12 +316,46 @@ public class FileSharingPeer {
 			 * connection. Remember to emit a getFile event to request the file form the
 			 * peer. Print out something informative for the events that occur.
 			 */
+			clientManager.on(PeerManager.peerStarted, (eventArgs) -> {
+				Endpoint client = (Endpoint) eventArgs[0];
+				ClientManager clientManager1 = (ClientManager) eventArgs[1];
+				client.on(fileContents, (eventArgs1) -> {
+					try {
+						// write the file
+						String encoded = (String)eventArgs1[0];
+						if (!encoded.isEmpty()) {
+							// continue receiving file
+							out.write(Base64.decodeBase64(encoded));
+						} else {
+							// no more file to receive
+							out.close();
+						}
+					} catch (IOException e) {
+						client.emit(fileError);
+					}
+				}).on(fileError, (eventArgs1) -> {
+					// mark here to think more about close all other peer which is still waiting
+					System.out.println("file does not exist or chunks fail to be read");
+					log.severe("file error");
+					client.close();
+				});
+				client.emit(getFile, parts[2]);
+			}).on(PeerManager.peerStopped, (eventArgs) -> {
+				Endpoint client = (Endpoint) eventArgs[0];
+				ClientManager clientManager1 = (ClientManager) eventArgs[1];
+				log.info("Client peer ended: " + client.getOtherEndpointId());
+			}).on(PeerManager.peerError, (eventArgs) -> {
+				Endpoint client = (Endpoint) eventArgs[0];
+				ClientManager clientManager1 = (ClientManager) eventArgs[1];
+				log.warning("Client peer ended in error: " + client.getOtherEndpointId());
+			});
 
 			clientManager.start();
 			/*
 			 * we will join with this thread later to make sure that it has finished
 			 * downloading before the jvm quits.
-			 */			
+			 */
+			clientManager.join();
 		} catch (FileNotFoundException e) {
 			System.out.println("Could not create file: " + parts[2]);
 		}
@@ -294,6 +384,41 @@ public class FileSharingPeer {
 		 * arrive. Make sure to emit your queryIndex event to actually query the index
 		 * server. Print out something informative for the events that occur.
 		 */
+		clientManager.on(PeerManager.peerStarted, (eventArgs) -> {
+			Endpoint client = (Endpoint) eventArgs[0];
+			ClientManager clientManager1 = (ClientManager) eventArgs[1];
+			client.on(IndexServer.queryResponse, (eventArgs1) -> {
+				String response = (String)eventArgs1[0];
+				log.info("receive query response" + response);
+				if (!response.isEmpty()) {
+					/*
+					 * not sure whether to emit query index
+					 */
+					client.emit(IndexServer.queryIndex, query);
+					try {
+						getFileFromPeer(peerManager, response);
+					} catch (InterruptedException e) {
+						//
+					}
+				} else {
+					// blank query response
+				}
+			}).on(IndexServer.queryError, (eventArgs1) -> {
+				// mark here to think more about close all other peer which is still waiting
+				System.out.println("the query was in error");
+				log.severe("query error");
+				clientManager.shutdown();
+			});
+		}).on(PeerManager.peerStopped, (eventArgs) -> {
+			Endpoint client = (Endpoint) eventArgs[0];
+			ClientManager clientManager1 = (ClientManager) eventArgs[1];
+			log.info("Client peer ended: " + client.getOtherEndpointId());
+		}).on(PeerManager.peerError, (eventArgs) -> {
+			Endpoint client = (Endpoint) eventArgs[0];
+			ClientManager clientManager1 = (ClientManager) eventArgs[1];
+			log.warning("Client peer ended in error: " + client.getOtherEndpointId());
+		});
+
 
 		clientManager.start();
 		clientManager.join(); // wait for the query to finish, since we are in main
