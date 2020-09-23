@@ -241,6 +241,7 @@ public class FileSharingPeer {
 			Endpoint client = (Endpoint)eventArgs[0];
 			ServerManager serverManager = (ServerManager)eventArgs[1];
 			client.on(getFile, (eventArgs1) -> {
+				System.out.println("client 监听到 GET FILE");
 				String filename = (String)eventArgs1[0];
 				startTransmittingFile(filename, client);
 			});
@@ -268,7 +269,7 @@ public class FileSharingPeer {
 		});
 
 		peerManager.start();
-		String peerport = host + ":" + indexServerPort;
+		String peerport = host + ":" + peerPort;
 		uploadFileList(filenames, peerManager, peerport);
 
 		// just keep sharing until the user presses "return"
@@ -300,7 +301,6 @@ public class FileSharingPeer {
 		try {
 			int port = Integer.parseInt(parts[1]);
 			clientManager = peerManager.connect(port, parts[0]);
-//			clientManager = new ClientManager(parts[0], port); // not sure
 			System.out.println("建立连接了");
 		} catch (UnknownHostException e) {
 			System.out.println("wrong PeerIp and PeerPort" + e.getMessage());
@@ -326,13 +326,14 @@ public class FileSharingPeer {
 					try {
 						// write the file
 						String encoded = (String)eventArgs1[0];
-						System.out.println("received: " + encoded);
 						if (!encoded.isEmpty()) {
 							// continue receiving file
 							out.write(Base64.decodeBase64(encoded));
 						} else {
 							// no more file to receive
+							System.out.println("file " + parts[2] + " transmission finished");
 							out.close();
+							client.close();
 						}
 					} catch (IOException e) {
 						client.emit(fileError);
@@ -402,6 +403,8 @@ public class FileSharingPeer {
 					}
 				} else {
 					// blank query response
+					System.out.println("query finish");
+					clientManager1.shutdown();
 				}
 			}).on(IndexServer.queryError, (eventArgs1) -> {
 				// mark here to think more about close all other peer which is still waiting

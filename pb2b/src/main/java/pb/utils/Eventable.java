@@ -49,7 +49,7 @@ public class Eventable extends Thread {
 			});
 			hit=true;
 		}
-		System.out.println("event name: " + eventName + " args: " + args.toString());
+		System.out.println("event name: " + eventName);
 		if(localEmit(eventName,args)) hit=true;
 		if(!hit)log.warning("no callbacks for event: "+eventName);
 		return hit;
