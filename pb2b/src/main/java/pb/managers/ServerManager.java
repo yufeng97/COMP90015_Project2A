@@ -20,7 +20,7 @@ import pb.protocols.session.SessionProtocol;
 
 /**
  * Manages all of the clients for the server and the server's state.
- * 
+ *
  * @see {@link pb.managers.Manager}
  * @see {@link pb.managers.IOThread}
  * @see {@link pb.managers.endpoint.Endpoint}
@@ -30,14 +30,14 @@ import pb.protocols.session.SessionProtocol;
  *
  */
 public class ServerManager extends Manager implements ISessionProtocolHandler,
-	IKeepAliveProtocolHandler, IEventProtocolHandler
+		IKeepAliveProtocolHandler, IEventProtocolHandler
 {
 	private static Logger log = Logger.getLogger(ServerManager.class.getName());
-	
+
 	/**
 	 * Events emitted by the ServerManager
 	 */
-	
+
 	/**
 	 * Emitted when a session on an endpoint is ready for use.
 	 * <ul>
@@ -45,7 +45,7 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 	 * </ul>
 	 */
 	public static final String sessionStarted="SESSION_STARTED";
-	
+
 	/**
 	 * Emitted when a session has stopped and can longer be used.
 	 * <ul>
@@ -53,7 +53,7 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 	 * </ul>
 	 */
 	public static final String sessionStopped="SESSION_STOPPED";
-	
+
 	/**
 	 * Emitted when a session has stopped in error and can no longer
 	 * be used.
@@ -62,14 +62,14 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 	 * </ul>
 	 */
 	public static final String sessionError="SESSION_ERROR";
-	
+
 	/**
 	 * TODO for project 2A. Make the server listen to these events
 	 * on all client connections and call the appropriate shutdown method
 	 * if the received password matches the password for this server.
 	 * Events the server will listen for.
 	 */
-	
+
 	/**
 	 * Emitted to cause the server to shutdown. Single argument
 	 * is the password to check.
@@ -78,7 +78,7 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 	 * </ul>
 	 */
 	public static final String shutdownServer="SHUTDOWN_SERVER";
-	
+
 	/**
 	 * Emitted to cause the server to force shutdown. Single argument
 	 * is the password to check.
@@ -87,7 +87,7 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 	 * </ul>
 	 */
 	public static final String forceShutdownServer="FORCE_SHUTDOWN_SERVER";
-	
+
 	/**
 	 * Emitted to cause the server to vader shutdown. Single argument
 	 * is the password to check.
@@ -96,13 +96,13 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 	 * </ul>
 	 */
 	public static final String vaderShutdownServer="VADER_SHUTDOWN_SERVER";
-	
+
 	/**
 	 * The io thread accepts connections and informs the server manager
 	 * of the connection's socket.
 	 */
 	private IOThread ioThread;
-	
+
 	/**
 	 * Keep a track of endpoints that
 	 * have not yet terminated, so that we can wait/ask/force for them to finish
@@ -110,22 +110,24 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 	 * endpoint threads and this server manager thread; so synchronized is needed.
 	 */
 	private final Set<Endpoint> liveEndpoints;
-	
+
 	/**
 	 * The port for this server.
 	 */
 	private final int port;
-	
+
+	private String password;
+
 	/**
 	 * Should we force shutdown, i.e force endpoints to close.
 	 */
 	private volatile boolean forceShutdown=false;
-	
+
 	/**
 	 * Should we force shutdown and not even wait for endpoints to close.
 	 */
 	private volatile boolean vaderShutdown=false;
-	
+
 	/**
 	 * Initialise the ServerManager with a port number for the io thread to listen on.
 	 * @param port to use when creating the io thread
@@ -135,17 +137,19 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 		liveEndpoints=new HashSet<>();
 		setName("ServerManager"); // name the thread, urgh simple log can't print it :-(
 	}
-	
+
 	/**
 	 * TODO: for Project 2B. Create an initializer that does as above but also takes
 	 * a password as an argument.
 	 */
-	public ServerManager(int port, String password) {
-		this.port = port;
+
+	public ServerManager(int port, String receivedPassword) {
+		this.port=port;
 		liveEndpoints=new HashSet<>();
-		setName("ServerManager"); // name the thread, urgh simple log can't print it :-(
+		setName("ServerManager");
+		this.password=receivedPassword;
 	}
-	
+
 	/**
 	 * TODO: for Project 2B. Use one of these methods appropriately for the event
 	 * emitted, when your server receives a correct password. Usually a single
@@ -154,25 +158,25 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 	 * server down, like if they are in a rush, or can wait for existing clients to
 	 * finish up gracefully, or if they can't wait at all, etc.
 	 */
-	
+
 	public void shutdown() {
 		log.info("server shutdown called");
 		// this will not force existing clients to finish their sessions
 		ioThread.shutDown();
 	}
-	
+
 	public void forceShutdown() { // Skywalker style :-)
 		log.warning("server force shutdown called");
 		forceShutdown=true; // this will send session stops to all the clients
 		ioThread.shutDown();
 	}
-	
+
 	public void vaderShutdown() { // Darkside style :-]
 		log.warning("server vader shutdown called");
 		vaderShutdown=true; // this will just close all of the endpoints abruptly
 		ioThread.shutDown();
 	}
-	
+
 	/**
 	 * Convenience wrapper
 	 * @return the number of live endpoints
@@ -182,7 +186,7 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 			return liveEndpoints.size();
 		}
 	}
-	
+
 	@Override
 	public void run() {
 		log.info("started");
@@ -194,7 +198,7 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 			log.severe("could not start the io thread");
 			return;
 		}
-		
+
 		try {
 			// just wait for this thread to terminate
 			ioThread.join();
@@ -202,13 +206,13 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 			// just make sure the ioThread is going to terminate
 			ioThread.shutDown();
 		}
-		
+
 		log.info("io thread has joined");
-		
+
 		// At this point, there still may be some endpoints that have not
 		// terminated, and so the JVM will remain running until they do.
 		// However no new endpoints can be created.
-		
+
 		// if we want to tell clients to end session
 		// it is indeed possible that both may be set true
 		if(forceShutdown && !vaderShutdown) {
@@ -221,7 +225,7 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 				});
 			}
 		}
-		
+
 		// in this case we just close the endpoints, which will likely cause
 		// abrupt disconnection
 		if(vaderShutdown) {
@@ -232,7 +236,7 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 				});
 			}
 		}
-		
+
 		// let's wait for the remaining clients if we can
 		while(numLiveEndpoints()>0 && !vaderShutdown) {
 			log.warning("still waiting for "+numLiveEndpoints()+" to finish");
@@ -256,7 +260,7 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 		}
 		log.info("terminated");
 	}
-	
+
 	/**
 	 * A new client has connected to the server. We need to keep
 	 * a set of all clients that have connected, so that we can
@@ -267,7 +271,7 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 		Endpoint endpoint = new Endpoint(clientSocket,this);
 		endpoint.start();
 	}
-	
+
 	/**
 	 * Called by a client endpoint to signal that it is now ready for
 	 * use, the server can send data and it may start receiving messages
@@ -286,7 +290,7 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 		synchronized(liveEndpoints) {
 			liveEndpoints.add(endpoint);
 		}
-		
+
 		/*
 		 * TODO: For Project2B Insert code here to ensure that the server listens on the
 		 * endpoint for shutdown events and calls the appropriate method. Use simple
@@ -295,7 +299,34 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 		 * command line when the server is running. If the secrets match then the
 		 * shutdown is issued, otherwise it is ignored.
 		 */
-		
+
+		endpoint.on(shutdownServer,(eventArg) ->{
+			String secret = (String) eventArg[0];
+			if(secret.equals(password)){
+				shutdown();
+				System.out.println("shutdown successfully");
+			}else{
+				System.out.println("password is incorrect");
+			}
+		}).on(forceShutdownServer,(eventArg1) ->{
+			String secret = (String) eventArg1[0];
+			if(secret.equals(password)){
+				forceShutdown();
+				System.out.println("force shutdown successfully");
+			}else{
+				System.out.println("password is incorrect");
+			}
+		}).on(vaderShutdownServer,(eventArg2)->{
+			String secret = (String) eventArg2[0];
+			if(secret.equals(password)){
+				vaderShutdown();
+				System.out.println("vader shutdown successfully");
+			}else{
+				System.out.println("password is incorrect");
+			}
+		});
+
+
 		KeepAliveProtocol keepAliveProtocol = new KeepAliveProtocol(endpoint,this);
 		try {
 			// we need to add it to the endpoint before starting it
@@ -311,10 +342,10 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 		} catch (ProtocolAlreadyRunning e) {
 			// hmmm... already started by the client
 		}
-		
-		
+
+
 	}
-	
+
 	/**
 	 * The endpoint close() method has been called and completed.
 	 * @param endpoint
@@ -334,14 +365,14 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 	@Override
 	public void sessionStarted(Endpoint endpoint) {
 		log.info("session has started with client: "+endpoint.getOtherEndpointId());
-		
+
 		if(forceShutdown) {
 			// ask the client to stop now
 			SessionProtocol sessionProtocol=(SessionProtocol) endpoint.getProtocol("SessionProtocol");
 			if(sessionProtocol!=null)
 				sessionProtocol.stopSession();
 		}
-		
+
 		// now start the event protocol
 		EventProtocol eventProtocol = new EventProtocol(endpoint,this);
 		try {
@@ -350,11 +381,11 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 		} catch (ProtocolAlreadyRunning e) {
 			// hmmm... already requested by the client
 		}
-		
+
 		// the event protocol has started but still no events
 		// could have been received at this point
 		localEmit(sessionStarted,endpoint);
-		
+
 	}
 
 	/**
@@ -367,13 +398,13 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 	@Override
 	public void sessionStopped(Endpoint endpoint) {
 		log.info("session has stopped with client: "+endpoint.getOtherEndpointId());
-		
+
 		localEmit(sessionStopped,endpoint);
-		
+
 		// we can now signal the client endpoint to close and forget this client
 		endpoint.close(); // will stop all remaining protocols
 	}
-	
+
 	/**
 	 * The endpoint has requested a protocol to start. If the protocol
 	 * is allowed then the manager should tell the endpoint to handle it
@@ -393,10 +424,10 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 			// even more weird...
 			return true;
 		}
-		
+
 	}
 
-	
+
 	/*
 	 * Everything below here is handling error conditions that could
 	 * arise with the client connection. Typically on error we terminate
@@ -416,9 +447,9 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 		localEmit(sessionError,endpoint);
 		endpoint.close();
 	}
-	
+
 	/**
-	 * The client connection died without warning. 
+	 * The client connection died without warning.
 	 * Server needs to clean up client data and possibly recover
 	 * from any faults that may occur due to this.
 	 * @param endpoint
@@ -429,9 +460,9 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 		localEmit(sessionError,endpoint);
 		endpoint.close();
 	}
-	
+
 	/**
-	 * The client sent a message that is invalid. Usual practice is to 
+	 * The client sent a message that is invalid. Usual practice is to
 	 * terminate the client connection.
 	 * @param endpoint
 	 */
@@ -455,7 +486,10 @@ public class ServerManager extends Manager implements ISessionProtocolHandler,
 		endpoint.close();
 	}
 
-	
 
-	
+
+
 }
+
+
+//java -cp target/pb2b-0.0.1-SNAPSHOT-jar-with-dependencies.jar pb.IndexServer -password pwd
