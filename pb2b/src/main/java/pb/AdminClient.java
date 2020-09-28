@@ -85,6 +85,7 @@ public class AdminClient  {
 			help(options);
 		}
 
+		assert cmd != null;
 		if(cmd.hasOption("password")){
 			password = cmd.getOptionValue("password");
 		}
@@ -132,7 +133,7 @@ public class AdminClient  {
 		 * events coming from any client that connects to it.
 		 */
 
-		clientManager.on(clientManager.sessionStarted,(eventArgs)-> {
+		clientManager.on(ClientManager.sessionStarted,(eventArgs)-> {
 			Endpoint endpoint = (Endpoint) eventArgs[0];
 			log.info("Client session started: " + endpoint.getOtherEndpointId());
 			if (forceShutdown) {

@@ -29,7 +29,6 @@ import pb.managers.IOThread;
 import pb.managers.PeerManager;
 import pb.managers.ServerManager;
 import pb.managers.endpoint.Endpoint;
-import pb.utils.Eventable;
 import pb.utils.Utils;
 
 /**
@@ -147,7 +146,7 @@ public class FileSharingPeer {
 			InputStream in = new FileInputStream(filename);
 			continueTransmittingFile(in, endpoint);
 		} catch (FileNotFoundException e) {
-			endpoint.emit(fileError);
+			endpoint.emit(fileError, "File does not exist");
 		}
 	}
 
@@ -195,13 +194,12 @@ public class FileSharingPeer {
 		 */
 		clientManager.on(PeerManager.peerStarted, (eventArgs) -> {
 			Endpoint client = (Endpoint) eventArgs[0];
-			ClientManager clientManager1 = (ClientManager) eventArgs[1];
 			client.on(IndexServer.indexUpdateError, (eventArgs1) -> {
 				String update = (String)eventArgs1[0];
 				System.out.println("index Update error");
 				log.warning("Received index update: " + update);
 			});
-			emitIndexUpdate(peerport, filenames, client, clientManager1);
+			emitIndexUpdate(peerport, filenames, client, clientManager);
 		}).on(PeerManager.peerError, (eventArgs) -> {
 			Endpoint client = (Endpoint)eventArgs[0];
 //			ServerManager serverManager = (ServerManager)eventArgs[1];
@@ -291,7 +289,7 @@ public class FileSharingPeer {
 		// response has the format: PeerIP:PeerPort:filename
 		String[] parts = response.split(":", 3);
 		ClientManager clientManager = null;
-		System.out.println("response: " + response + " split成功了");
+
 		/*
 		 * TODO for project 2B. Check that the individual parts returned from the server
 		 * have the correct format and that we make a connection to the peer. Print out
@@ -301,7 +299,6 @@ public class FileSharingPeer {
 		try {
 			int port = Integer.parseInt(parts[1]);
 			clientManager = peerManager.connect(port, parts[0]);
-			System.out.println("建立连接了");
 		} catch (UnknownHostException e) {
 			System.out.println("wrong PeerIp and PeerPort" + e.getMessage());
 			log.severe("Could not make a connection to the peer: " + parts[0] + ":" + parts[1]);
@@ -310,7 +307,6 @@ public class FileSharingPeer {
 
 		try {
 			OutputStream out = new FileOutputStream(parts[2]);
-			System.out.println("建立output stream了");
 			/*
 			 * TODO for project 2B. listen for peerStarted, peerStopped and peerError events
 			 * on the clientManager. Listen for fileContents and fileError events on the
@@ -321,7 +317,6 @@ public class FileSharingPeer {
 			 */
 			clientManager.on(PeerManager.peerStarted, (eventArgs) -> {
 				Endpoint client = (Endpoint) eventArgs[0];
-				ClientManager clientManager1 = (ClientManager) eventArgs[1];
 				client.on(fileContents, (eventArgs1) -> {
 					try {
 						// write the file
@@ -331,27 +326,30 @@ public class FileSharingPeer {
 							out.write(Base64.decodeBase64(encoded));
 						} else {
 							// no more file to receive
-							System.out.println("file " + parts[2] + " transmission finished");
+							System.out.println("file downloaded: " + parts[2]);
 							out.close();
 							client.close();
 						}
 					} catch (IOException e) {
-						client.emit(fileError);
+						client.emit(fileError, "File IO error");
 					}
 				}).on(fileError, (eventArgs1) -> {
 					// mark here to think more about close all other peer which is still waiting
 					System.out.println("file does not exist or chunks fail to be read");
 					log.severe("file error");
+					try {
+						out.close();
+					} catch (IOException e) {
+						System.out.println("could not close file");
+					}
 					client.close();
 				});
 				client.emit(getFile, parts[2]);
 			}).on(PeerManager.peerStopped, (eventArgs) -> {
 				Endpoint client = (Endpoint) eventArgs[0];
-				ClientManager clientManager1 = (ClientManager) eventArgs[1];
 				log.info("Client peer ended: " + client.getOtherEndpointId());
 			}).on(PeerManager.peerError, (eventArgs) -> {
 				Endpoint client = (Endpoint) eventArgs[0];
-				ClientManager clientManager1 = (ClientManager) eventArgs[1];
 				log.warning("Client peer ended in error: " + client.getOtherEndpointId());
 			});
 
@@ -391,7 +389,6 @@ public class FileSharingPeer {
 		 */
 		clientManager.on(PeerManager.peerStarted, (eventArgs) -> {
 			Endpoint client = (Endpoint) eventArgs[0];
-			ClientManager clientManager1 = (ClientManager) eventArgs[1];
 			client.on(IndexServer.queryResponse, (eventArgs1) -> {
 				String response = (String)eventArgs1[0];
 				log.info("receive query response: " + response);
@@ -404,7 +401,7 @@ public class FileSharingPeer {
 				} else {
 					// blank query response
 					System.out.println("query finish");
-					clientManager1.shutdown();
+					clientManager.shutdown();
 				}
 			}).on(IndexServer.queryError, (eventArgs1) -> {
 				// mark here to think more about close all other peer which is still waiting
@@ -418,11 +415,9 @@ public class FileSharingPeer {
 			client.emit(IndexServer.queryIndex, query);
 		}).on(PeerManager.peerStopped, (eventArgs) -> {
 			Endpoint client = (Endpoint) eventArgs[0];
-			ClientManager clientManager1 = (ClientManager) eventArgs[1];
 			log.info("Client peer ended: " + client.getOtherEndpointId());
 		}).on(PeerManager.peerError, (eventArgs) -> {
 			Endpoint client = (Endpoint) eventArgs[0];
-			ClientManager clientManager1 = (ClientManager) eventArgs[1];
 			log.warning("Client peer ended in error: " + client.getOtherEndpointId());
 		});
 
