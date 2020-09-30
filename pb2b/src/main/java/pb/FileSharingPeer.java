@@ -507,3 +507,6 @@ public class FileSharingPeer {
 	}
 
 }
+
+
+//java -cp ../target/pb2b-0.0.1-SNAPSHOT-jar-with-dependencies.jar pb.FileSharingPeer -share 1.txt

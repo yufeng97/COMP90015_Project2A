@@ -125,6 +125,7 @@ public class AdminClient  {
 		clientManager.start();
 
 
+
 		/*
 		 * TODO for project 2B. Emit an appropriate shutdown event to the server,
 		 * sending the password. Then shutdown the clientManager. The following line
@@ -142,11 +143,12 @@ public class AdminClient  {
 				endpoint.emit(ServerManager.vaderShutdownServer, password);
 			} else if (Shutdown) {
 				endpoint.emit(ServerManager.shutdownServer, password);
+				clientManager.shutdown();
 			}
 		});
 
-		clientManager.join();
 
+		clientManager.join();
 		Utils.getInstance().cleanUp();
 
 	}
