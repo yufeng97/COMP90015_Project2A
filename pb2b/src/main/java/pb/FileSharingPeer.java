@@ -147,7 +147,7 @@ public class FileSharingPeer {
 			InputStream in = new FileInputStream(filename);
 			continueTransmittingFile(in, endpoint);
 		} catch (FileNotFoundException e) {
-			endpoint.emit(fileError);
+			endpoint.emit(fileError,"");
 		}
 	}
 
