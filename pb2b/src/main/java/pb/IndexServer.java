@@ -238,9 +238,9 @@ public class IndexServer {
 		 * ServerManager(port,password) initializer (that needs to be created by you in
 		 * ServerMain.java) if the password was given.
 		 */
-		if(cmd.hasOption("password")){
+		if (cmd.hasOption("password")) {
 			password = cmd.getOptionValue("password");
-			System.out.println("password is : "+cmd.getOptionValue("password"));
+			System.out.println("Index Server password is: " + cmd.getOptionValue("password"));
 		}
 
 		ServerManager serverManager = new ServerManager(port);
