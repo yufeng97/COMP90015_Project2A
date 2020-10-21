@@ -1,1 +1,7 @@
+# directory
 .idea
+pb3/target/
+
+# file
+pb3.iml
+pom.xml
