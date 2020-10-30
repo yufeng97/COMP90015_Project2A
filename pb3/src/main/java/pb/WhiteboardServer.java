@@ -1,6 +1,10 @@
 package pb;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import org.apache.commons.cli.CommandLine;
@@ -11,6 +15,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 
+import pb.managers.IOThread;
 import pb.managers.ServerManager;
 import pb.managers.endpoint.Endpoint;
 import pb.utils.Utils;
@@ -76,6 +81,13 @@ public class WhiteboardServer {
      */
     private static int port = Utils.indexServerPort;
 
+    /**
+     * The set for sharing boards
+     */
+    private static Set<String> sharingBoards = new HashSet<>();
+
+    private static Map<String, Endpoint> connectedPeers = new HashMap<>();
+
 
     private static void help(Options options) {
         String header = "PB Whiteboard Server for Unimelb COMP90015\n\n";
@@ -128,7 +140,44 @@ public class WhiteboardServer {
         serverManager.on(ServerManager.sessionStarted, (eventArgs) -> {
             Endpoint endpoint = (Endpoint) eventArgs[0];
             log.info("Client session started: " + endpoint.getOtherEndpointId());
-            //
+            endpoint.on(WhiteboardServer.shareBoard, args1 -> {
+                String data = (String)args1[0];
+                System.out.println("Received SHARED: " + data);
+                sharingBoards.add(data);
+                // emit this board to other peer
+                for (String peerPort : connectedPeers.keySet()) {
+                    if (!peerPort.equals(endpoint.getOtherEndpointId())) {
+                        Endpoint peer = connectedPeers.get(peerPort);
+                        peer.emit(WhiteboardServer.sharingBoard, data);
+                    }
+                }
+            }).on(WhiteboardServer.unshareBoard, args1 -> {
+                String data = (String)args1[0];
+                System.out.println("Received UNSHARED: " + data);
+                sharingBoards.remove(data);
+                // emit this board to other peer
+                for (String peerPort : connectedPeers.keySet()) {
+                    if (!peerPort.equals(endpoint.getOtherEndpointId())) {
+                        Endpoint peer = connectedPeers.get(peerPort);
+                        peer.emit(WhiteboardServer.unsharingBoard, data);
+                    }
+                }
+            });
+            // emit all the shared board to new connected peer.
+            for (String data : sharingBoards) {
+                endpoint.emit(WhiteboardServer.sharingBoard, data);
+            }
+            connectedPeers.put(endpoint.getOtherEndpointId(), endpoint);
+        }).on(ServerManager.sessionStopped,(eventArgs)->{
+            Endpoint endpoint = (Endpoint)eventArgs[0];
+            log.info("Client session ended: "+endpoint.getOtherEndpointId());
+        }).on(ServerManager.sessionError, (eventArgs)->{
+            Endpoint endpoint = (Endpoint)eventArgs[0];
+            log.warning("Client session ended in error: "+endpoint.getOtherEndpointId());
+        }).on(IOThread.ioThread, (eventArgs)->{
+            String peerport = (String) eventArgs[0];
+            // we don't need this info, but let's log it
+            log.info("using Internet address: "+peerport);
         });
 
         // start up the server

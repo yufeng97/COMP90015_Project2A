@@ -1,5 +1,13 @@
 package pb.app;
 
+import pb.IndexServer;
+import pb.WhiteboardServer;
+import pb.managers.ClientManager;
+import pb.managers.IOThread;
+import pb.managers.PeerManager;
+import pb.managers.ServerManager;
+import pb.managers.endpoint.Endpoint;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -10,6 +18,7 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -181,16 +190,71 @@ public class WhiteboardApp {
 	JComboBox<String> boardComboBox;
 	boolean modifyingComboBox=false;
 	boolean modifyingCheckBox=false;
+
+	/**
+	 * The client manager communicate with server
+	 */
+	ClientManager clientManager = null;
+	Endpoint endpointToServer = null;
 	
 	/**
 	 * Initialize the white board app.
 	 */
-	public WhiteboardApp(int peerPort,String whiteboardServerHost, 
+	public WhiteboardApp(int peerPort, String whiteboardServerHost,
 			int whiteboardServerPort) {
 		whiteboards=new HashMap<>();
 
-		show(peerport);
-		
+		peerport = whiteboardServerHost + ":" + peerPort;
+		// TODO
+		PeerManager peerManager = new PeerManager(peerPort);
+
+		try {
+			clientManager = connect(peerManager, whiteboardServerHost, whiteboardServerPort);
+//			clientManager.on(PeerManager.peerStarted, (args) -> {
+//				Endpoint endpoint = (Endpoint)args[0];
+//				System.out.println("Connection from peer: " + endpoint.getOtherEndpointId());
+//			}).on(PeerManager.peerStopped, (args) -> {
+//				Endpoint endpoint = (Endpoint)args[0];
+//				System.out.println("Disconnected from peer: " + endpoint.getOtherEndpointId());
+//			}).on(PeerManager.peerError, (args) -> {
+//				Endpoint endpoint = (Endpoint)args[0];
+//				System.out.println("There was an error communicating with the peer: "
+//						+endpoint.getOtherEndpointId());
+//			});
+			clientManager.start();
+			show(peerport);
+
+			clientManager.join();
+		} catch (UnknownHostException e) {
+			System.out.println("The Whiteboard server host could not be found: "+ whiteboardServerHost);
+		} catch (InterruptedException e) {
+			System.out.println("Interrupted while trying to send updates to the Whiteboard server");
+		}
+	}
+
+	private ClientManager connect(PeerManager peerManager, String whiteboardServerHost,
+								  int whiteboardServerPort) throws InterruptedException, UnknownHostException {
+		ClientManager clientManager = peerManager.connect(whiteboardServerPort, whiteboardServerHost);
+		clientManager.on(PeerManager.peerStarted, (args)->{
+			Endpoint endpoint = (Endpoint)args[0];
+			endpoint.on(WhiteboardServer.sharingBoard, args1 -> {
+				String data = (String)args1[0];
+				System.out.println("Received SHARING_BOARD event: " + data + " from server");
+			}).on(WhiteboardServer.unsharingBoard, args1 -> {
+				String data = (String)args1[0];
+				System.out.println("Received UNSHARING_BOARD event: " + data + " from server");
+			});
+			System.out.println("Connected to Whiteboard server: "+endpoint.getOtherEndpointId());
+			endpointToServer = endpoint;
+		}).on(PeerManager.peerStopped, (args)->{
+			Endpoint endpoint = (Endpoint)args[0];
+			System.out.println("Disconnected from the Whiteboard server: "+endpoint.getOtherEndpointId());
+		}).on(PeerManager.peerError, (args)->{
+			Endpoint endpoint = (Endpoint)args[0];
+			System.out.println("There was an error communicating with the Whiteboard server: "
+					+endpoint.getOtherEndpointId());
+		});
+		return clientManager;
 	}
 	
 	/******
@@ -276,9 +340,18 @@ public class WhiteboardApp {
 	 ******/
 	
 	// From whiteboard server
-	
+	// TODO
 	
 	// From whiteboard peer
+	private void onShareBoard(boolean share) {
+		if (endpointToServer != null) {
+			if (share) {
+				endpointToServer.emit(WhiteboardServer.shareBoard, selectedBoard.getName());
+			} else {
+				endpointToServer.emit(WhiteboardServer.unshareBoard, selectedBoard.getName());
+			}
+		}
+	}
 	
 	
 	
@@ -293,7 +366,7 @@ public class WhiteboardApp {
 	 * Wait for the peer manager to finish all threads.
 	 */
 	public void waitToFinish() {
-		
+		// TODO
 	}
 	
 	/**
@@ -402,9 +475,11 @@ public class WhiteboardApp {
 	public void setShare(boolean share) {
 		if(selectedBoard!=null) {
         	selectedBoard.setShared(share);
+			onShareBoard(share);
         } else {
         	log.severe("there is no selected board");
         }
+		System.out.println("click to share checkbox in peer : " + share);
 	}
 	
 	/**
