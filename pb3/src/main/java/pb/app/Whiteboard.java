@@ -165,7 +165,7 @@ public class Whiteboard {
 	
 	/**
 	 * 
-	 * @return
+	 * @return peer:port:boarid
 	 */
 	public String getName() {
 		return name;
