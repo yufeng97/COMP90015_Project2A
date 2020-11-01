@@ -232,12 +232,20 @@ public class WhiteboardApp {
 				endpoint.emit(WhiteboardApp.boardData, whiteboard.toString());
 			}).on(WhiteboardApp.boardPathAccepted, args1 -> {
 
-			}).on(WhiteboardApp.boardPathUpdate, args1 -> {
-				String data = (String)args1[0];
-				System.out.println("peer server Receive boardPathUpdate event " + data);
-				String path = getBoardPaths(data);
-				onBoardPath(path);
-			}).on(WhiteboardApp.boardUndoAccepted, args1 -> {
+			})
+//					.on(WhiteboardApp.boardPathUpdate, args1 -> {
+//				String data = (String)args1[0];
+//				System.out.println("peer server Receive boardPathUpdate event ");
+//				String path = getBoardPaths(data);
+////				onBoardPath(path);
+//				for (int endpointPort : connectedClientPeers.keySet()) {
+//					if (port != endpointPort) {
+//						Endpoint client = connectedClientPeers.get(endpointPort);
+//						client.emit(WhiteboardApp.boardPathUpdate, data);
+//					}
+//				}
+//			})
+					.on(WhiteboardApp.boardUndoAccepted, args1 -> {
 
 			}).on(WhiteboardApp.boardUndoUpdate, args1 -> {
 
@@ -338,7 +346,7 @@ public class WhiteboardApp {
 				WhiteboardPath path = new WhiteboardPath(pathData);
 				long version = getBoardVersion(data);
 				Whiteboard whiteboard = whiteboards.get(boardName);
-				whiteboard.addPath(path, version);
+				System.out.println(whiteboard.addPath(path, version - 1));
 				drawSelectedWhiteboard();
 			});
 			System.out.println("Connected to Peer server: " + endpoint.getOtherEndpointId());
@@ -468,16 +476,17 @@ public class WhiteboardApp {
 
 	private void onBoardPath(String pathData) {
 		String data = selectedBoard.getNameAndVersion() + "%" + pathData;
+		System.out.println(data);
 		if (selectedBoard.isRemote()) {
 			int port = getPort(selectedBoard.getName());
 			Endpoint endpoint = connectedServerPeers.get(port);
-			endpoint.emit(WhiteboardApp.boardPathUpdate, data);
 			System.out.println("client emit boardPath");
+			endpoint.emit(WhiteboardApp.boardPathUpdate, data);
 		} else {
+			System.out.println("Server emit board path");
 			for (Endpoint endpoint : connectedClientPeers.values()) {
 				endpoint.emit(WhiteboardApp.boardPathUpdate, data);
 			}
-			System.out.println("Server emit board path");
 		}
 	}
 
@@ -485,10 +494,7 @@ public class WhiteboardApp {
 		String[] parts = name.split(":", 2);
 		int port = getPort(name);
 		System.out.println(name);
-		System.out.println("port: " + port);
 		Endpoint endpoint = connectedServerPeers.get(port);
-		System.out.println(endpoint);
-		System.out.println(endpoint.getOtherEndpointId());
 		endpoint.emit(WhiteboardApp.getBoardData, name);
 		System.out.println("Emit event " + WhiteboardApp.getBoardData);
 		endpoint.emit(WhiteboardApp.listenBoard, name);
