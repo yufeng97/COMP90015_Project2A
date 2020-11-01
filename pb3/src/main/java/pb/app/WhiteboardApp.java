@@ -234,7 +234,11 @@ public class WhiteboardApp {
 			}).on(WhiteboardApp.boardClearAccepted, args1 -> {
 
 			}).on(WhiteboardApp.boardClearUpdate, args1 -> {
+				System.out.println("receive " );
+				String nameAndVersion = (String)args1[0];
+				Whiteboard whiteboard = whiteboards.get(nameAndVersion);
 
+				endpoint.emit(WhiteboardApp.boardClearAccepted, whiteboard.toString());
 			}).on(WhiteboardApp.boardDeleted, args1 -> {
 
 			}).on(WhiteboardApp.boardError, args1 -> {
@@ -426,7 +430,7 @@ public class WhiteboardApp {
 
 	/**
 	 *
-	 * @param name peer:port:boarid
+	 * @param name peer:port:board id
 	 */
 	private void onBoardData(String name) {
 		String[] parts = name.split(":");
@@ -547,8 +551,14 @@ public class WhiteboardApp {
 				drawSelectedWhiteboard();
 			} else {
 				// was accepted locally, so do remote stuff if needed
-				
-				drawSelectedWhiteboard();
+				if(!selectedBoard.isRemote()){
+					for (Endpoint endpoint : connectedClientPeers.values()) {
+						endpoint.emit(WhiteboardApp.boardClearUpdate,selectedBoard.getNameAndVersion());
+					}
+				}else{
+
+				}
+
 			}
 		} else {
 			log.severe("cleared without a selected board");
