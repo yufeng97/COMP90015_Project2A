@@ -526,7 +526,7 @@ public class WhiteboardApp {
 				drawSelectedWhiteboard(); // just redraw the screen without the path
 			} else {
 				// was accepted locally, so do remote stuff if needed
-				
+
 			}
 		} else {
 			log.severe("path created without a selected board: "+currentPath);
@@ -690,6 +690,7 @@ public class WhiteboardApp {
 						return;
 					}
 					deleteBoard(selectedBoard.getName());
+					endpointToServer.emit(WhiteboardApp.boardDeleted, selectedBoard.getName());
 				}
 			}
 		};
