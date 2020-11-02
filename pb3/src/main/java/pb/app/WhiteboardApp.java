@@ -263,10 +263,23 @@ public class WhiteboardApp {
 					}
 				}
 			}).on(WhiteboardApp.boardClearAccepted, args1 -> {
-				System.out.println("receive: "+WhiteboardApp.boardClearAccepted);
 
 			}).on(WhiteboardApp.boardClearUpdate, args1 -> {
-
+				System.out.println("Receive " + WhiteboardApp.boardClearUpdate);
+				String nameAndVersion = (String)args1[0];
+				System.out.println("name and version: "+nameAndVersion);
+				String[] part = nameAndVersion.split("%");
+				String whiteboardName = part[0];
+				long version = Long.parseLong(part[1]);
+				Whiteboard whiteboard = whiteboards.get(whiteboardName);
+				if(!whiteboard.clear(version-1)){
+					System.out.println("version error");
+				}else{
+					drawSelectedWhiteboard();
+					for (Endpoint serverEndpointToClient : serverEndpointToClient.values()) {
+						serverEndpointToClient.emit(WhiteboardApp.boardClearAccepted,whiteboard.getNameAndVersion());
+					}
+				}
 			}).on(WhiteboardApp.boardDeleted, args1 -> {
 
 			}).on(WhiteboardApp.boardError, args1 -> {
@@ -629,10 +642,10 @@ public class WhiteboardApp {
 						endpoint.emit(WhiteboardApp.boardClearAccepted,selectedBoard.getNameAndVersion());
 					}
 				}else{
-					System.out.println("here");
-
+					for (Endpoint endpoint : clientEndpointToServer.values()) {
+						endpoint.emit(WhiteboardApp.boardClearUpdate,selectedBoard.getNameAndVersion());
+					}
 				}
-
 			}
 		} else {
 			log.severe("cleared without a selected board");
