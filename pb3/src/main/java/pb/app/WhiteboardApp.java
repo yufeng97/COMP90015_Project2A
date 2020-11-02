@@ -393,6 +393,10 @@ public class WhiteboardApp {
 				Whiteboard whiteboard = whiteboards.get(boardName);
 				whiteboard.undo(version - 1);
 				drawSelectedWhiteboard();
+			}).on(WhiteboardApp.boardDeleted, args1 -> {
+				System.out.println("Client Receive " + WhiteboardApp.boardDeleted);
+				String boardName = (String)args1[0];
+				deleteBoard(boardName);
 			});
 
 			System.out.println("Connected to Peer server: " + endpoint.getOtherEndpointId());
@@ -801,7 +805,12 @@ public class WhiteboardApp {
 						return;
 					}
 					deleteBoard(selectedBoard.getName());
-					endpointToServer.emit(WhiteboardApp.boardDeleted, selectedBoard.getName());
+					if(!selectedBoard.isRemote()){
+						for (Endpoint endpoint : serverEndpointToClient.values()) {
+							endpoint.emit(WhiteboardApp.boardDeleted,selectedBoard.getName());
+						}
+						endpointToServer.emit(WhiteboardServer.unshareBoard,selectedBoard.getName());
+					}
 				}
 			}
 		};
