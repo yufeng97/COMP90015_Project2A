@@ -243,16 +243,25 @@ public class WhiteboardApp {
 				Whiteboard whiteboard = whiteboards.get(boardName);
 				whiteboard.addPath(path, version - 1);
 				drawSelectedWhiteboard();
-				if (selectedBoard.isShared()) {
-					System.out.println("Server emit board path accept");
-					for (Endpoint client : serverEndpointToClient.values()) {
-						if (!client.getOtherEndpointId().equals(endpoint.getOtherEndpointId())) {
-							client.emit(WhiteboardApp.boardPathAccepted, data);
-						}
+				System.out.println("Server emit board path accept");
+				for (Endpoint server : serverEndpointToClient.values()) {
+					if (!server.getOtherEndpointId().equals(endpoint.getOtherEndpointId())) {
+						server.emit(WhiteboardApp.boardPathAccepted, data);
 					}
 				}
 			}).on(WhiteboardApp.boardUndoUpdate, args1 -> {
-				//
+				System.out.println("Client Receive " + WhiteboardApp.boardUndoAccepted);
+				String nameAndVersion = (String)args1[0];
+				String boardName = getBoardName(nameAndVersion);
+				long version = getBoardVersion(nameAndVersion);
+				Whiteboard whiteboard = whiteboards.get(boardName);
+				whiteboard.undo(version - 1);
+				drawSelectedWhiteboard();
+				for (Endpoint server : serverEndpointToClient.values()) {
+					if (!server.getOtherEndpointId().equals(endpoint.getOtherEndpointId())) {
+						server.emit(WhiteboardApp.boardUndoAccepted, nameAndVersion);
+					}
+				}
 			}).on(WhiteboardApp.boardClearAccepted, args1 -> {
 				System.out.println("receive: "+WhiteboardApp.boardClearAccepted);
 
@@ -364,7 +373,13 @@ public class WhiteboardApp {
 				whiteboard.addPath(path, version - 1);
 				drawSelectedWhiteboard();
 			}).on(WhiteboardApp.boardUndoAccepted, args1 -> {
-
+				System.out.println("Client Receive " + WhiteboardApp.boardUndoAccepted);
+				String nameAndVersion = (String)args1[0];
+				String boardName = getBoardName(nameAndVersion);
+				long version = getBoardVersion(nameAndVersion);
+				Whiteboard whiteboard = whiteboards.get(boardName);
+				whiteboard.undo(version - 1);
+				drawSelectedWhiteboard();
 			});
 
 			System.out.println("Connected to Peer server: " + endpoint.getOtherEndpointId());
