@@ -230,9 +230,9 @@ public class WhiteboardApp {
 				String boardName = (String)args1[0];
 				Whiteboard whiteboard = whiteboards.get(boardName);
 				endpoint.emit(WhiteboardApp.boardData, whiteboard.toString());
-			}).on(WhiteboardApp.boardPathAccepted, args1 -> {
+			}).on(WhiteboardApp.boardPathUpdate, args1 -> {
 				String data = (String)args1[0];
-				System.out.println("Receive boardPathAccepted event ");
+				System.out.println("Receive boardPathUpdate event ");
 				String boardName = getBoardName(data);
 				String pathData = getBoardPaths(data);
 				WhiteboardPath path = new WhiteboardPath(pathData);
@@ -241,10 +241,10 @@ public class WhiteboardApp {
 				whiteboard.addPath(path, version - 1);
 				drawSelectedWhiteboard();
 				if (selectedBoard.isShared()) {
-					System.out.println("Server emit board path");
+					System.out.println("Server emit board path accept");
 					for (Endpoint client : serverEndpointToClient.values()) {
 						if (!client.getOtherEndpointId().equals(endpoint.getOtherEndpointId())) {
-							client.emit(WhiteboardApp.boardPathUpdate, data);
+							client.emit(WhiteboardApp.boardPathAccepted, data);
 						}
 					}
 				}
@@ -340,8 +340,8 @@ public class WhiteboardApp {
 				String boardData = getBoardData(data);
 				whiteboard.whiteboardFromString(boardName, boardData);
 				drawSelectedWhiteboard();
-			}).on(WhiteboardApp.boardPathUpdate, args1 -> {
-				System.out.println("client Receive " + WhiteboardApp.boardPathUpdate);
+			}).on(WhiteboardApp.boardPathAccepted, args1 -> {
+				System.out.println("client Receive " + WhiteboardApp.boardPathAccepted);
 				String data = (String)args1[0];
 				System.out.println(data);
 				String boardName = getBoardName(data);
@@ -350,8 +350,6 @@ public class WhiteboardApp {
 				WhiteboardPath path = new WhiteboardPath(pathData);
 				long version = getBoardVersion(data);
 				Whiteboard whiteboard = whiteboards.get(boardName);
-				System.out.println(boardName + "  " + "data version: " + version);
-				System.out.println("board version: " + whiteboard.getVersion());
 				whiteboard.addPath(path, version - 1);
 				drawSelectedWhiteboard();
 			});
@@ -567,15 +565,16 @@ public class WhiteboardApp {
 				String pathData = currentPath.toString();
 				String data = selectedBoard.getNameAndVersion() + "%" + pathData;
 				if (selectedBoard.isRemote()) {
+					// emit update event to server peer to request update
 					int port = getPort(selectedBoard.getName());
 					Endpoint endpoint = clientEndpointToServer.get(port);
-					System.out.println("client emit boardPath accept");
-					endpoint.emit(WhiteboardApp.boardPathAccepted, data);
+					System.out.println("client emit boardPath update");
+					endpoint.emit(WhiteboardApp.boardPathUpdate, data);
 				} else {
 					if (selectedBoard.isShared()) {
-						System.out.println("Server emit board path");
+						System.out.println("Server emit board path accept");
 						for (Endpoint endpoint : serverEndpointToClient.values()) {
-							endpoint.emit(WhiteboardApp.boardPathUpdate, data);
+							endpoint.emit(WhiteboardApp.boardPathAccepted, data);
 						}
 					}
 				}
@@ -618,7 +617,15 @@ public class WhiteboardApp {
 				// some other peer modified the board in between
 				drawSelectedWhiteboard();
 			} else {
-				
+//				if (selectedBoard.isRemote()) {
+//					String boardName = selectedBoard.getName();
+//					Endpoint endpoint = serverEndpointToClient.get(boardName);
+//					endpoint.emit(WhiteboardApp.boardUndoAccepted, )
+//				} else {
+//					if (selectedBoard.isShared()) {
+//						//
+//					}
+//				}
 				drawSelectedWhiteboard();
 			}
 		} else {
