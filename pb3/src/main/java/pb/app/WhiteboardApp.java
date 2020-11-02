@@ -248,10 +248,8 @@ public class WhiteboardApp {
 						}
 					}
 				}
-			}).on(WhiteboardApp.boardUndoAccepted, args1 -> {
-
 			}).on(WhiteboardApp.boardUndoUpdate, args1 -> {
-
+				//
 			}).on(WhiteboardApp.boardClearAccepted, args1 -> {
 
 			}).on(WhiteboardApp.boardClearUpdate, args1 -> {
@@ -352,6 +350,8 @@ public class WhiteboardApp {
 				Whiteboard whiteboard = whiteboards.get(boardName);
 				whiteboard.addPath(path, version - 1);
 				drawSelectedWhiteboard();
+			}).on(WhiteboardApp.boardUndoAccepted, args1 -> {
+
 			});
 			System.out.println("Connected to Peer server: " + endpoint.getOtherEndpointId());
 			clientEndpointToServer.put(peerServerPort, endpoint);
@@ -617,15 +617,17 @@ public class WhiteboardApp {
 				// some other peer modified the board in between
 				drawSelectedWhiteboard();
 			} else {
-//				if (selectedBoard.isRemote()) {
-//					String boardName = selectedBoard.getName();
-//					Endpoint endpoint = serverEndpointToClient.get(boardName);
-//					endpoint.emit(WhiteboardApp.boardUndoAccepted, )
-//				} else {
-//					if (selectedBoard.isShared()) {
-//						//
-//					}
-//				}
+				if (selectedBoard.isRemote()) {
+					int port = getPort(selectedBoard.getName());
+					Endpoint endpoint = clientEndpointToServer.get(port);
+					endpoint.emit(WhiteboardApp.boardUndoUpdate, selectedBoard.getNameAndVersion());
+				} else {
+					if (selectedBoard.isShared()) {
+						for (Endpoint endpoint : serverEndpointToClient.values()) {
+							endpoint.emit(WhiteboardApp.boardUndoAccepted, selectedBoard.getNameAndVersion());
+						}
+					}
+				}
 				drawSelectedWhiteboard();
 			}
 		} else {
