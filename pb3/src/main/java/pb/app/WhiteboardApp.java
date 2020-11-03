@@ -731,6 +731,11 @@ public class WhiteboardApp {
 		existingBoards.forEach((board)->{
 			deleteBoard(board.getName());
 		});
+		clientManagers.values().forEach(clientManager -> {
+			clientManager.shutdown();
+		});
+		clientManagers.clear();
+
 	}
 	
 	
