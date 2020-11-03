@@ -210,6 +210,10 @@ public class WhiteboardApp {
 
 	Map<Integer, ClientManager> clientManagers = new HashMap<>();
 
+	PeerManager peerManager = null;
+
+	ClientManager clientManagerToServer = null;
+
 	/**
 	 * Initialize the white board app.
 	 */
@@ -220,6 +224,7 @@ public class WhiteboardApp {
 		peerport = whiteboardServerHost + ":" + peerPort;
 		// TODO
 		PeerManager peerManager = new PeerManager(peerPort);
+		this.peerManager = peerManager;
 		peerManager.on(PeerManager.peerStarted, (args) -> {
 			Endpoint endpoint = (Endpoint)args[0];
 			System.out.println("Connection from peer: " + endpoint.getOtherEndpointId());
@@ -346,6 +351,7 @@ public class WhiteboardApp {
 			});
 			System.out.println("Connected to Whiteboard server: "+endpoint.getOtherEndpointId());
 			endpointToServer = endpoint;
+			clientManagerToServer = clientManager;
 		}).on(PeerManager.peerStopped, (args) -> {
 			Endpoint endpoint = (Endpoint)args[0];
 			System.out.println("Disconnected from the Whiteboard server: "+endpoint.getOtherEndpointId());
@@ -568,6 +574,8 @@ public class WhiteboardApp {
 	 */
 	public void waitToFinish() {
 		// TODO
+		System.out.println("wait to finish");
+
 	}
 	
 	/**
@@ -731,10 +739,11 @@ public class WhiteboardApp {
 		existingBoards.forEach((board)->{
 			deleteBoard(board.getName());
 		});
-		clientManagers.values().forEach(clientManager -> {
-			clientManager.shutdown();
-		});
+
+		clientManagers.values().forEach(ClientManager::shutdown);
 		clientManagers.clear();
+		peerManager.shutdown();
+		clientManagerToServer.shutdown();
 
 	}
 	
