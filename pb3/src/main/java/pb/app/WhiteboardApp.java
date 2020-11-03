@@ -305,6 +305,8 @@ public class WhiteboardApp {
 			Endpoint endpoint = (Endpoint)args[0];
 			System.out.println("There was an error communicating with the peer: "
 					+endpoint.getOtherEndpointId());
+			int port = getPort(endpoint.getOtherEndpointId());
+			serverEndpointToClient.remove(port, endpoint);
 		});
 		peerManager.start();
 
@@ -356,10 +358,14 @@ public class WhiteboardApp {
 		}).on(PeerManager.peerStopped, (args) -> {
 			Endpoint endpoint = (Endpoint)args[0];
 			System.out.println("Disconnected from the Whiteboard server: "+endpoint.getOtherEndpointId());
+			endpointToServer = null;
+			clientManagerToServer = null;
 		}).on(PeerManager.peerError, (args) -> {
 			Endpoint endpoint = (Endpoint)args[0];
 			System.out.println("There was an error communicating with the Whiteboard server: "
 					+endpoint.getOtherEndpointId());
+			endpointToServer = null;
+			clientManagerToServer = null;
 		});
 		return clientManager;
 	}
@@ -424,10 +430,13 @@ public class WhiteboardApp {
 			Endpoint endpoint = (Endpoint)args[0];
 			System.out.println("Disconnected from the Peer server: " + endpoint.getOtherEndpointId());
 			clientEndpointToServer.remove(peerServerPort);
+			clientManagers.remove(peerServerPort);
 		}).on(PeerManager.peerError, (args)->{
 			Endpoint endpoint = (Endpoint)args[0];
 			System.out.println("There was an error communicating with the Peer server: "
 					+endpoint.getOtherEndpointId());
+			clientEndpointToServer.remove(peerServerPort);
+			clientManagers.remove(peerServerPort);
 		});
 		// make sure that do not connect second time
 		if (!clientEndpointToServer.containsKey(peerServerPort)) {

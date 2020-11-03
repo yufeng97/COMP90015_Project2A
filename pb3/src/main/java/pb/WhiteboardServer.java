@@ -171,9 +171,11 @@ public class WhiteboardServer {
         }).on(ServerManager.sessionStopped,(eventArgs)->{
             Endpoint endpoint = (Endpoint)eventArgs[0];
             log.info("Client session ended: "+endpoint.getOtherEndpointId());
+            connectedPeers.remove(endpoint.getOtherEndpointId());
         }).on(ServerManager.sessionError, (eventArgs)->{
             Endpoint endpoint = (Endpoint)eventArgs[0];
             log.warning("Client session ended in error: "+endpoint.getOtherEndpointId());
+            connectedPeers.remove(endpoint.getOtherEndpointId());
         }).on(IOThread.ioThread, (eventArgs)->{
             String peerport = (String) eventArgs[0];
             // we don't need this info, but let's log it
