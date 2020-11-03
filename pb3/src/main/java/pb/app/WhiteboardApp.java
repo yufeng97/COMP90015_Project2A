@@ -347,6 +347,7 @@ public class WhiteboardApp {
 				if (!checkStillConnect(port)) {
 					clientManagers.get(port).shutdown();
 					clientManagers.remove(port);
+					System.out.println("clientManagers");
 				}
 			});
 			System.out.println("Connected to Whiteboard server: "+endpoint.getOtherEndpointId());
@@ -422,6 +423,7 @@ public class WhiteboardApp {
 		}).on(PeerManager.peerStopped, (args)->{
 			Endpoint endpoint = (Endpoint)args[0];
 			System.out.println("Disconnected from the Peer server: " + endpoint.getOtherEndpointId());
+			clientEndpointToServer.remove(peerServerPort);
 		}).on(PeerManager.peerError, (args)->{
 			Endpoint endpoint = (Endpoint)args[0];
 			System.out.println("There was an error communicating with the Peer server: "
