@@ -220,7 +220,7 @@ public class WhiteboardApp {
 			System.out.println("Connection from peer: " + endpoint.getOtherEndpointId());
 			int port = getPort(endpoint.getOtherEndpointId());
 			serverEndpointToClient.put(port, endpoint);
-
+			System.out.println(serverEndpointToClient);
 
 			endpoint.on(WhiteboardApp.listenBoard, args1 -> {
 				String data = (String)args1[0];
@@ -262,8 +262,6 @@ public class WhiteboardApp {
 						server.emit(WhiteboardApp.boardUndoAccepted, nameAndVersion);
 					}
 				}
-			}).on(WhiteboardApp.boardClearAccepted, args1 -> {
-
 			}).on(WhiteboardApp.boardClearUpdate, args1 -> {
 				System.out.println("Receive " + WhiteboardApp.boardClearUpdate);
 				String nameAndVersion = (String)args1[0];
@@ -272,12 +270,14 @@ public class WhiteboardApp {
 				String whiteboardName = part[0];
 				long version = Long.parseLong(part[1]);
 				Whiteboard whiteboard = whiteboards.get(whiteboardName);
-				if(!whiteboard.clear(version-1)){
+				if (!whiteboard.clear(version - 1)) {
 					System.out.println("version error");
-				}else{
+				} else {
 					drawSelectedWhiteboard();
-					for (Endpoint serverEndpointToClient : serverEndpointToClient.values()) {
-						serverEndpointToClient.emit(WhiteboardApp.boardClearAccepted,whiteboard.getNameAndVersion());
+					for (Endpoint server : serverEndpointToClient.values()) {
+						if (!server.getOtherEndpointId().equals(endpoint.getOtherEndpointId())) {
+							server.emit(WhiteboardApp.boardClearAccepted, whiteboard.getNameAndVersion());
+						}
 					}
 				}
 			}).on(WhiteboardApp.boardDeleted, args1 -> {
@@ -409,7 +409,10 @@ public class WhiteboardApp {
 			System.out.println("There was an error communicating with the Peer server: "
 					+endpoint.getOtherEndpointId());
 		});
-		clientManager.start();
+		// make sure that do not connect second time
+		if (!clientEndpointToServer.containsKey(peerServerPort)) {
+			clientManager.start();
+		}
 	}
 	
 	/******
