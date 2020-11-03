@@ -202,8 +202,12 @@ public class WhiteboardApp {
 	/**
 	 * The endpoint connect to client
 	 */
-
 	Map<Integer, Endpoint> serverEndpointToClient = new HashMap<>();
+
+	/**
+	 * The client manager which connects to different peer server
+	 */
+	Map<Integer, ClientManager> clientManagers = new HashMap<>();
 
 	/**
 	 * Initialize the white board app.
@@ -332,6 +336,11 @@ public class WhiteboardApp {
 				String data = (String)args1[0];
 				System.out.println("Received UNSHARING_BOARD event: " + data + " from server");
 				deleteBoard(data);
+				int port = getPort(data);
+				if (!checkStillConnect(port)) {
+					clientManagers.get(port).shutdown();
+					clientManagers.remove(port);
+				}
 			});
 			System.out.println("Connected to Whiteboard server: "+endpoint.getOtherEndpointId());
 			endpointToServer = endpoint;
@@ -401,6 +410,7 @@ public class WhiteboardApp {
 
 			System.out.println("Connected to Peer server: " + endpoint.getOtherEndpointId());
 			clientEndpointToServer.put(peerServerPort, endpoint);
+			clientManagers.put(peerServerPort, clientManager);
 		}).on(PeerManager.peerStopped, (args)->{
 			Endpoint endpoint = (Endpoint)args[0];
 			System.out.println("Disconnected from the Peer server: " + endpoint.getOtherEndpointId());
@@ -512,19 +522,16 @@ public class WhiteboardApp {
 	// From whiteboard peer
 
 	/**
-	 *
-	 * @param name peer:port:board id
+	 * check whether peer server with given port should keep connection
+	 * @param port peer server port
 	 */
-	private void onBoardData(String name) {
-		String[] parts = name.split(":");
-	}
-
-	private void onGetBoard(String data) {
-		//
-	}
-
-	private void onBoardListen(String data) {
-		//
+	private boolean checkStillConnect(int port) {
+		for (String boardName : whiteboards.keySet()) {
+			if (getPort(boardName) == port) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void getRemoteBoardData(String name) {
