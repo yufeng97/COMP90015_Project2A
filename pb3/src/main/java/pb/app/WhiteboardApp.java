@@ -206,6 +206,12 @@ public class WhiteboardApp {
 	Map<Integer, Endpoint> serverEndpointToClient = new HashMap<>();
 
 	/**
+	 * The endpoint connect to client
+	 */
+
+	Map<Integer, ClientManager> clientManagers = new HashMap<>();
+
+	/**
 	 * Initialize the white board app.
 	 */
 	public WhiteboardApp(int peerPort, String whiteboardServerHost,
@@ -330,8 +336,11 @@ public class WhiteboardApp {
 				createRemoteBoard(data);
 			}).on(WhiteboardServer.unsharingBoard, args1 -> {
 				String data = (String)args1[0];
+				Integer serverPort = getPort(data);
 				System.out.println("Received UNSHARING_BOARD event: " + data + " from server");
 				deleteBoard(data);
+				Endpoint endpoint1=clientEndpointToServer.get(serverPort);
+
 			});
 			System.out.println("Connected to Whiteboard server: "+endpoint.getOtherEndpointId());
 			endpointToServer = endpoint;
@@ -401,6 +410,7 @@ public class WhiteboardApp {
 
 			System.out.println("Connected to Peer server: " + endpoint.getOtherEndpointId());
 			clientEndpointToServer.put(peerServerPort, endpoint);
+			clientManagers.put(peerServerPort,clientManager);
 		}).on(PeerManager.peerStopped, (args)->{
 			Endpoint endpoint = (Endpoint)args[0];
 			System.out.println("Disconnected from the Peer server: " + endpoint.getOtherEndpointId());
@@ -582,6 +592,12 @@ public class WhiteboardApp {
 		synchronized(whiteboards) {
 			Whiteboard whiteboard = whiteboards.get(boardname);
 			if(whiteboard!=null) {
+				if(whiteboard.isShared()){
+					for (Endpoint endpoint : serverEndpointToClient.values()) {
+						endpoint.emit(WhiteboardApp.boardDeleted,boardname);
+					}
+					endpointToServer.emit(WhiteboardServer.unshareBoard,boardname);
+				}
 				whiteboards.remove(boardname);
 			}
 		}
@@ -716,9 +732,6 @@ public class WhiteboardApp {
 		existingBoards.forEach((board)->{
 			deleteBoard(board.getName());
 		});
-    	whiteboards.values().forEach((whiteboard)->{
-    		
-    	});
 	}
 	
 	
@@ -808,12 +821,6 @@ public class WhiteboardApp {
 						return;
 					}
 					deleteBoard(selectedBoard.getName());
-					if(!selectedBoard.isRemote()){
-						for (Endpoint endpoint : serverEndpointToClient.values()) {
-							endpoint.emit(WhiteboardApp.boardDeleted,selectedBoard.getName());
-						}
-						endpointToServer.emit(WhiteboardServer.unshareBoard,selectedBoard.getName());
-					}
 				}
 			}
 		};
