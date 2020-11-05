@@ -239,13 +239,13 @@ public class WhiteboardApp {
 				String data = (String)args1[0];
 				System.out.println("Receive unlistenboard event " + data);
 			}).on(WhiteboardApp.getBoardData, args1 -> {
-				System.out.println("receive " + WhiteboardApp.getBoardData);
+				System.out.println("Receive " + WhiteboardApp.getBoardData);
 				String boardName = (String)args1[0];
 				Whiteboard whiteboard = whiteboards.get(boardName);
 				endpoint.emit(WhiteboardApp.boardData, whiteboard.toString());
 			}).on(WhiteboardApp.boardPathUpdate, args1 -> {
 				String data = (String)args1[0];
-				System.out.println("Receive boardPathUpdate event ");
+				System.out.println("Receive "+WhiteboardApp.boardPathUpdate);
 				String boardName = getBoardName(data);
 				String pathData = getBoardPaths(data);
 				WhiteboardPath path = new WhiteboardPath(pathData);
@@ -253,7 +253,6 @@ public class WhiteboardApp {
 				Whiteboard whiteboard = whiteboards.get(boardName);
 				whiteboard.addPath(path, version - 1);
 				drawSelectedWhiteboard();
-				System.out.println("Server emit board path accept");
 				for (Endpoint server : serverEndpointToClient.values()) {
 					if (!server.getOtherEndpointId().equals(endpoint.getOtherEndpointId())) {
 						server.emit(WhiteboardApp.boardPathAccepted, data);
@@ -275,7 +274,6 @@ public class WhiteboardApp {
 			}).on(WhiteboardApp.boardClearUpdate, args1 -> {
 				System.out.println("Receive " + WhiteboardApp.boardClearUpdate);
 				String nameAndVersion = (String)args1[0];
-				System.out.println("name and version: "+nameAndVersion);
 				String[] part = nameAndVersion.split("%");
 				String whiteboardName = part[0];
 				long version = Long.parseLong(part[1]);
@@ -330,14 +328,14 @@ public class WhiteboardApp {
 				String data = (String)args1[0];
 				System.out.println("Received SHARING_BOARD event: " + data + " from server");
 				String[] parts = data.split(":");
-				try {
-					connectToPeer(peerManager, parts[0], Integer.parseInt(parts[1]));
-				} catch (InterruptedException e) {
-					System.out.println("The peer server host could not be found: "+ parts[0]);
-				} catch (UnknownHostException e) {
-					System.out.println("Interrupted while trying to send updates to the peer server");
-				}
-				createRemoteBoard(data);
+					try {
+						connectToPeer(peerManager, parts[0], Integer.parseInt(parts[1]));
+					} catch (InterruptedException e) {
+						System.out.println("The peer server host could not be found: " + parts[0]);
+					} catch (UnknownHostException e) {
+						System.out.println("Interrupted while trying to send updates to the peer server");
+					}
+					createRemoteBoard(data);
 			}).on(WhiteboardServer.unsharingBoard, args1 -> {
 				String data = (String)args1[0];
 				Integer serverPort = getPort(data);
@@ -347,7 +345,6 @@ public class WhiteboardApp {
 				if (!checkStillConnect(port)) {
 					clientManagers.get(port).shutdown();
 					clientManagers.remove(port);
-					System.out.println("clientManagers");
 				}
 			});
 			System.out.println("Connected to Whiteboard server: "+endpoint.getOtherEndpointId());
@@ -373,7 +370,6 @@ public class WhiteboardApp {
 				System.out.println("Receive " + WhiteboardApp.boardData);
 				String data = (String)args1[0];
 				String boardName = getBoardName(data);
-				System.out.println(boardName);
 				Whiteboard whiteboard = whiteboards.get(boardName);
 				String boardData = getBoardData(data);
 				whiteboard.whiteboardFromString(boardName, boardData);
@@ -381,7 +377,6 @@ public class WhiteboardApp {
 			}).on(WhiteboardApp.boardClearAccepted,args1 -> {
 				System.out.println("Receive " + WhiteboardApp.boardClearAccepted);
 				String nameAndVersion = (String)args1[0];
-				System.out.println("name and version: "+nameAndVersion);
 				String[] part = nameAndVersion.split("%");
 				String whiteboardName = part[0];
 				long version = Long.parseLong(part[1]);
@@ -394,9 +389,7 @@ public class WhiteboardApp {
 			}).on(WhiteboardApp.boardPathAccepted, args1 -> {
 				System.out.println("client Receive " + WhiteboardApp.boardPathAccepted);
 				String data = (String)args1[0];
-				System.out.println(data);
 				String boardName = getBoardName(data);
-				System.out.println(boardName);
 				String pathData = getBoardPaths(data);
 				WhiteboardPath path = new WhiteboardPath(pathData);
 				long version = getBoardVersion(data);
@@ -547,7 +540,6 @@ public class WhiteboardApp {
 	private void getRemoteBoardData(String name) {
 		String[] parts = name.split(":", 2);
 		int port = getPort(name);
-		System.out.println(name);
 		Endpoint endpoint = clientEndpointToServer.get(port);
 		endpoint.emit(WhiteboardApp.getBoardData, name);
 		System.out.println("Emit event " + WhiteboardApp.getBoardData);
