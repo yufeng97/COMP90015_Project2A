@@ -1,12 +1,15 @@
+# directory
 .idea
 target/
+pb3/target/
+
+
+# file
+pom.xml
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
 pom.xml.next
 
 pb.iml
-pom.xml
-
 pb3.iml
-
